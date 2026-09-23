@@ -1,0 +1,53 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "tracks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "saversCapped", "order": "ASCENDING" },
+        { "fieldPath": "saveCount", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "tracks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "artistId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "tracks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "producerId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "rotation",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "entityId", "order": "ASCENDING" },
+        { "fieldPath": "score", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "activity",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "actorUid", "order": "ASCENDING" },
+        { "fieldPath": "savedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "following",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "targetId", "order": "ASCENDING" },
+        { "fieldPath": "targetType", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
