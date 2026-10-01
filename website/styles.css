@@ -1,4 +1,15 @@
 /* earlyworld marketing site. Palette from the app brand (../BRAND_COLORS.md). */
+
+/* Panchang (Fontshare) used as the display face for headings. Variable, 200-800. */
+@font-face {
+  font-family: "Panchang";
+  src: url("assets/fonts/Panchang-Variable.woff2") format("woff2"),
+    url("assets/fonts/Panchang-Variable.woff") format("woff");
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --bg: #050710;
   --panel: #0c1425;
@@ -7,6 +18,9 @@
   --muted: #9eabd3;
   --faint: #7283b2;
   --accent: #a9b3fc;
+
+  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Panchang", system-ui, sans-serif;
 }
 
 * {
@@ -21,7 +35,7 @@ html {
 }
 
 body {
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-body);
   background: var(--bg);
   color: var(--text);
   line-height: 1.65;
@@ -40,8 +54,13 @@ body {
 h1,
 h2,
 h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.15;
+}
+.brand span {
+  font-family: var(--font-display);
 }
 
 a {

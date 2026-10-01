@@ -15,6 +15,10 @@ no build step and no dependencies. It uses the app's real brand palette
 | `styles.css` | Brand-matched styling, responsive layout, animations |
 | `script.js` | Nav, scroll-reveal, mobile menu, waitlist form handling |
 | `assets/earlyworld-logo.png` | App logo (copied from `assets/brand/`) |
+| `assets/fonts/Panchang-Variable.woff2` | Panchang display font for headings (variable 200-800, self-hosted) |
+
+Headings use **Panchang** (Fontshare); body copy stays on the system sans. The
+font licence is included at `assets/fonts/Panchang-License.txt`.
 
 ## Preview locally
 
