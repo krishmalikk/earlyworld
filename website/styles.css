@@ -263,6 +263,12 @@ img {
 .art--4 {
   background: linear-gradient(135deg, #30283f, #8a6fb0);
 }
+.art--5 {
+  background: linear-gradient(135deg, #1d2d3a, #4fb0b8);
+}
+.art--6 {
+  background: linear-gradient(135deg, #3a2434, #c06fa0);
+}
 .pmeta {
   flex: 1;
   min-width: 0;
@@ -339,9 +345,9 @@ img {
   right: 14px;
   bottom: 14px;
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 11px 13px;
   border: 1px solid var(--accent);
   border-radius: 10px;
   background: #101a30;
@@ -356,6 +362,10 @@ img {
   opacity: 1;
   transform: none;
 }
+.ptoast__msg {
+  flex: 1;
+  line-height: 1.4;
+}
 .ptoast b {
   color: var(--text);
   font-weight: 600;
@@ -366,6 +376,7 @@ img {
   border-radius: 50%;
   background: var(--accent);
   flex-shrink: 0;
+  margin-top: 4px;
 }
 
 @media (prefers-reduced-motion: reduce) {
