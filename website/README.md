@@ -43,9 +43,15 @@ system fonts.
 The hero phone runs a small looping demo (`script.js`): it focuses a track, saves
 it so the count ticks up, pops a "rare" badge, and slides up a taste match. It
 honours `prefers-reduced-motion` by falling back to a static state. The artists
-shown are **real underground acts with accurate producer credits** (billy woods /
-Kenny Segal, MIKE / dj blackpower, Navy Blue, Wiki & MIKE / The Alchemist); the
-save counts are illustrative sample data, not live figures.
+shown are **real underground rap acts with accurate producer credits** (Nettspend
+& Xaviersobased / Evilgiane, OsamaSon / Cranes, OsamaSon & Nettspend / Legion,
+OsamaSon & Nettspend / OK); the save counts are illustrative sample data, not live
+figures.
+
+The hero also has an animated flowing wave background (`#waves` canvas in
+`script.js`), a stacked set of gradient sine lines drifting over time, inspired by
+a reference design and on-theme with earlyworld's waveform logo. It renders a
+single static frame under `prefers-reduced-motion`.
 
 ## Before going live
 
