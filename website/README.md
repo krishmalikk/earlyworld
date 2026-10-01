@@ -1,10 +1,10 @@
-# earlyworld — marketing website
+# earlyworld marketing website
 
 A static, single-page marketing site for the **earlyworld** app. Pure HTML/CSS/JS,
 no build step and no dependencies. It uses the app's real brand palette
 (see [`../BRAND_COLORS.md`](../BRAND_COLORS.md)) and the official logo.
 
-> This is the **marketing website** that showcases the app — it is **not** the app
+> This is the **marketing website** that showcases the app. It is **not** the app
 > itself. earlyworld is a native iOS/Android app and is intentionally not a web app.
 
 ## Files
@@ -33,19 +33,19 @@ cd website && python3 -m http.server 8080
 
 ## Page structure
 
-Follows a standard high-converting app-landing layout: hero → trust strip →
-problem/why → benefit-led feature rows → how it works → who it's for →
-testimonials → FAQ → final call-to-action → footer.
+Hero, a short "what it is" statement, four plain feature blocks, how it works,
+FAQ, and an early-access email capture. Deliberately plain: no gradient text, no
+glow blobs, no fabricated stats or testimonials, one accent colour used sparingly,
+system fonts.
 
 ## Before going live
 
 - **Waitlist form** (`script.js`) is front-end only. Point it at a real endpoint
   (Formspree, a Cloud Function, Mailchimp, etc.).
-- **Testimonials** are illustrative placeholders — swap in real quotes.
-- **Legal links** (Privacy, Terms) in the footer are placeholders.
-- Add real **App Store / Play Store** badges once the app is published.
+- Add real **App Store / Play Store** links once the app is published.
+- Add **Privacy / Terms** pages and link them in the footer if you need them.
 
 ## Deploy
 
-Any static host works — drop the `website/` folder onto Netlify, Vercel, GitHub
+Any static host works. Drop the `website/` folder onto Netlify, Vercel, GitHub
 Pages, Cloudflare Pages, or Firebase Hosting.

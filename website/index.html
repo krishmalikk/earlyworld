@@ -3,499 +3,236 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>earlyworld — Underground music, and the people who find it first</title>
+    <title>earlyworld</title>
     <meta
       name="description"
-      content="earlyworld is the underground music discovery app where producers get credit, rare saves connect listeners, and your taste becomes a profile worth following."
+      content="earlyworld is an app for finding underground music, crediting the producers behind it, and connecting with listeners who share your taste."
     />
     <meta name="theme-color" content="#050710" />
 
-    <!-- Open Graph / social -->
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="earlyworld — Underground music, and the people who find it first" />
+    <meta property="og:title" content="earlyworld" />
     <meta
       property="og:description"
-      content="Discover underground tracks, credit the producers, rate what you love, and match with listeners who share your rarest saves."
+      content="An app for finding underground music, crediting the producers, and connecting with listeners who share your taste."
     />
     <meta property="og:image" content="assets/earlyworld-logo.png" />
-    <meta name="twitter:card" content="summary_large_image" />
 
     <link rel="icon" type="image/png" href="assets/earlyworld-logo.png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
-      rel="stylesheet"
-    />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <!-- ======================= NAV ======================= -->
-    <header class="nav" id="nav">
-      <div class="container nav__inner">
-        <a class="brand" href="#top" aria-label="earlyworld home">
-          <img src="assets/earlyworld-logo.png" alt="" class="brand__mark" />
-          <span class="brand__name">earlyworld</span>
+    <header class="nav">
+      <div class="wrap nav__inner">
+        <a class="brand" href="#top">
+          <img src="assets/earlyworld-logo.png" alt="earlyworld logo" />
+          <span>earlyworld</span>
         </a>
-        <nav class="nav__links" aria-label="Primary">
-          <a href="#features">Features</a>
+        <nav class="nav__links">
+          <a href="#what">What it is</a>
           <a href="#how">How it works</a>
-          <a href="#who">Who it's for</a>
           <a href="#faq">FAQ</a>
+          <a href="#access">Get access</a>
         </nav>
-        <a href="#get" class="btn btn--primary btn--sm nav__cta">Get early access</a>
-        <button class="nav__toggle" id="navToggle" aria-label="Toggle menu" aria-expanded="false">
-          <span></span><span></span><span></span>
-        </button>
       </div>
     </header>
 
     <main id="top">
-      <!-- ======================= HERO ======================= -->
+      <!-- HERO -->
       <section class="hero">
-        <div class="hero__glow" aria-hidden="true"></div>
-        <div class="container hero__inner">
-          <div class="hero__copy reveal">
-            <span class="eyebrow">Underground music discovery</span>
-            <h1 class="hero__title">
-              Find it first.<br />
-              Give credit where it's due.
-            </h1>
-            <p class="hero__sub">
-              earlyworld is the discovery app for people who dig deeper. Surface underground tracks,
-              credit the <strong>producers</strong> as well as the artists, rate what moves you, and
-              match with listeners who share your rarest saves.
+        <div class="wrap hero__grid">
+          <div class="hero__text">
+            <h1>Dig deeper into underground music.</h1>
+            <p class="lead">
+              earlyworld is a small app for finding new tracks, crediting the producers who made
+              them, and connecting with listeners who share your taste.
             </p>
-            <div class="hero__actions">
-              <a href="#get" class="btn btn--primary">Get early access</a>
-              <a href="#how" class="btn btn--ghost">See how it works</a>
-            </div>
-            <ul class="hero__badges">
-              <li>Built for iOS &amp; Android</li>
-              <li aria-hidden="true">·</li>
-              <li>No in-app ads</li>
-              <li aria-hidden="true">·</li>
-              <li>Links out to the source</li>
-            </ul>
+            <a href="#access" class="btn">Get early access</a>
+            <p class="note">A native app for iOS and Android. No ads, no autoplay.</p>
           </div>
 
-          <!-- Phone mockup -->
-          <div class="hero__device reveal" aria-hidden="true">
+          <div class="phone-wrap">
             <div class="phone">
-              <div class="phone__notch"></div>
-              <div class="phone__screen">
-                <div class="appbar">
-                  <img src="assets/earlyworld-logo.png" alt="" class="appbar__logo" />
-                  <span class="appbar__title">Discover</span>
-                </div>
-                <div class="scene-chips">
-                  <span class="chip chip--on">jersey club</span>
-                  <span class="chip">plugg</span>
-                  <span class="chip">ambient</span>
-                  <span class="chip">dnb</span>
-                </div>
-
-                <article class="trackcard">
-                  <div class="trackcard__art art--1"></div>
-                  <div class="trackcard__meta">
-                    <p class="trackcard__title">Nightshade</p>
-                    <p class="trackcard__artist">KORU</p>
-                    <p class="trackcard__prod">prod. <span>v1rtu</span></p>
-                  </div>
-                  <div class="trackcard__side">
-                    <span class="stars">★★★★<span class="half">★</span></span>
-                    <span class="saves">◈ 12 saves</span>
-                  </div>
-                </article>
-
-                <article class="trackcard">
-                  <div class="trackcard__art art--2"></div>
-                  <div class="trackcard__meta">
-                    <p class="trackcard__title">Low Orbit</p>
-                    <p class="trackcard__artist">Mira Sound</p>
-                    <p class="trackcard__prod">prod. <span>8ball, Lys</span></p>
-                  </div>
-                  <div class="trackcard__side">
-                    <span class="stars">★★★★★</span>
-                    <span class="saves saves--rare">◈ 3 rare</span>
-                  </div>
-                </article>
-
-                <article class="trackcard">
-                  <div class="trackcard__art art--3"></div>
-                  <div class="trackcard__meta">
-                    <p class="trackcard__title">Glasshouse</p>
-                    <p class="trackcard__artist">neo tokyo</p>
-                    <p class="trackcard__prod">prod. <span>aria</span></p>
-                  </div>
-                  <div class="trackcard__side">
-                    <span class="stars">★★★★<span class="half">★</span></span>
-                    <span class="saves">◈ 27 saves</span>
-                  </div>
-                </article>
-
-                <div class="match-toast">
-                  <span class="match-toast__dot"></span>
-                  You and <strong>8ball</strong> share 3 rare saves
-                </div>
+              <div class="phone__bar">
+                <img src="assets/earlyworld-logo.png" alt="" />
+                <span>Discover</span>
               </div>
+
+              <article class="row">
+                <span class="art art--1"></span>
+                <span class="row__meta">
+                  <b>Nightshade</b>
+                  <i>KORU</i>
+                  <small>prod. v1rtu</small>
+                </span>
+                <span class="row__right">★ 4.5<br /><em>12 saves</em></span>
+              </article>
+
+              <article class="row">
+                <span class="art art--2"></span>
+                <span class="row__meta">
+                  <b>Low Orbit</b>
+                  <i>Mira Sound</i>
+                  <small>prod. 8ball, Lys</small>
+                </span>
+                <span class="row__right">★ 5.0<br /><em class="rare">3 saves</em></span>
+              </article>
+
+              <article class="row">
+                <span class="art art--3"></span>
+                <span class="row__meta">
+                  <b>Glasshouse</b>
+                  <i>neo tokyo</i>
+                  <small>prod. aria</small>
+                </span>
+                <span class="row__right">★ 4.5<br /><em>27 saves</em></span>
+              </article>
+
+              <p class="phone__match">You and 8ball both saved Low Orbit.</p>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- ======================= TRUST STRIP ======================= -->
-      <section class="strip">
-        <div class="container strip__inner">
-          <p class="strip__label">Built for the underground — crate-diggers, producers, and tastemakers</p>
-          <div class="strip__stats">
-            <div class="stat"><span class="stat__num">200+</span><span class="stat__lbl">verified tracks at launch</span></div>
-            <div class="stat"><span class="stat__num">40</span><span class="stat__lbl">artists &amp; producers</span></div>
-            <div class="stat"><span class="stat__num">½★</span><span class="stat__lbl">precision ratings</span></div>
-            <div class="stat"><span class="stat__num">0</span><span class="stat__lbl">ads, trackers, autoplay</span></div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ======================= PROBLEM / WHY ======================= -->
-      <section class="why">
-        <div class="container why__inner reveal">
-          <span class="eyebrow eyebrow--center">Why earlyworld</span>
-          <h2 class="section__title">
-            The algorithm feeds you what's already big.<br />
-            <span class="muted-line">We built the opposite.</span>
-          </h2>
-          <p class="section__lead">
-            Streaming apps optimize for the mainstream and bury the people who actually make the sound —
-            the producers. earlyworld is a small, deliberate home for underground music where discovery
-            is driven by real taste, credit is given in full, and finding a track early actually means
-            something.
+      <!-- WHAT IT IS -->
+      <section class="band" id="what">
+        <div class="wrap narrow">
+          <p class="big">
+            Streaming apps push whatever is already popular, and the producer rarely gets a mention.
+            earlyworld does the opposite. It is a quieter place for underground music, where
+            discovery runs on real taste and credit goes to everyone who made the record.
           </p>
         </div>
       </section>
 
-      <!-- ======================= FEATURES ======================= -->
-      <section class="features" id="features">
-        <div class="container">
-          <div class="features__head reveal">
-            <span class="eyebrow eyebrow--center">What you get</span>
-            <h2 class="section__title">Everything a music head actually wants</h2>
+      <!-- FEATURES -->
+      <section class="feat">
+        <div class="wrap">
+          <div class="feat__item">
+            <h2>Producers get their name on the work</h2>
+            <p>
+              Every track lists the producer next to the artist. You can open a producer's full
+              catalog and follow them the same way you follow an artist. Credits fill in
+              automatically when a track is added, and anything you enter yourself takes priority.
+            </p>
           </div>
 
-          <!-- Feature row 1 -->
-          <div class="feature reveal">
-            <div class="feature__text">
-              <span class="feature__kicker">Credit</span>
-              <h3>Producers get their name in the light</h3>
-              <p>
-                Every track shows the producer right alongside the artist. Browse full producer
-                catalogs, follow the people behind the beat, and watch tier badges climb as their work
-                gets saved. The rotation belongs to artists <em>and</em> producers.
-              </p>
-              <ul class="feature__points">
-                <li>Prominent producer credits on every release</li>
-                <li>Dedicated producer profiles &amp; catalogs</li>
-                <li>Credits enriched automatically, your edits win</li>
-              </ul>
-            </div>
-            <div class="feature__visual">
-              <div class="card card--profile">
-                <div class="profile__row">
-                  <div class="profile__avatar av--1"></div>
-                  <div>
-                    <p class="profile__name">v1rtu <span class="badge badge--plat">Platinum</span></p>
-                    <p class="profile__role">Producer · 48 credits</p>
-                  </div>
-                </div>
-                <div class="profile__grid">
-                  <div class="profile__tile t--1"></div>
-                  <div class="profile__tile t--2"></div>
-                  <div class="profile__tile t--3"></div>
-                  <div class="profile__tile t--4"></div>
-                </div>
-                <p class="profile__cap">Full catalog, in save order</p>
-              </div>
-            </div>
+          <div class="feat__item">
+            <h2>Rare saves find your people</h2>
+            <p>
+              When you save a track it counts toward your taste, and the fewer people who saved it,
+              the more it says about you. earlyworld matches you with listeners who saved the same
+              hard-to-find tracks, and shows you exactly which ones you have in common.
+            </p>
           </div>
 
-          <!-- Feature row 2 -->
-          <div class="feature feature--reverse reveal">
-            <div class="feature__text">
-              <span class="feature__kicker">Connection</span>
-              <h3>Rare saves connect you to the right people</h3>
-              <p>
-                When you save an obscure track, it counts. earlyworld matches you with listeners who
-                saved the same rarities — the rarer the shared save, the stronger the match. Your taste
-                becomes a map to people who hear like you.
-              </p>
-              <ul class="feature__points">
-                <li>Rarity-weighted taste matching</li>
-                <li>See exactly which tracks connect you</li>
-                <li>A feed of the saves from people you follow</li>
-              </ul>
-            </div>
-            <div class="feature__visual">
-              <div class="card card--match">
-                <p class="match__title">Taste match</p>
-                <div class="match__people">
-                  <div class="profile__avatar av--2"></div>
-                  <span class="match__link"></span>
-                  <div class="profile__avatar av--3"></div>
-                </div>
-                <p class="match__score">92% match</p>
-                <div class="match__shared">
-                  <span>Low Orbit <em>· rare</em></span>
-                  <span>Glasshouse <em>· rare</em></span>
-                  <span>Nightshade</span>
-                </div>
-              </div>
-            </div>
+          <div class="feat__item">
+            <h2>Rate what you hear</h2>
+            <p>
+              Rate songs and releases in half-stars, add a short review if you feel like it, and pin
+              your favorites to your profile. Your ratings build a history that tells people who you
+              are, next to the community average for each track.
+            </p>
           </div>
 
-          <!-- Feature row 3 -->
-          <div class="feature reveal">
-            <div class="feature__text">
-              <span class="feature__kicker">Taste</span>
-              <h3>Rate, review, and build a profile worth following</h3>
-              <p>
-                Half-star ratings for the precision real listeners need. Leave a short review, pin your
-                four favorite tracks and releases, and let your highest-rated history tell people
-                exactly who you are.
-              </p>
-              <ul class="feature__points">
-                <li>Half-star song &amp; release ratings</li>
-                <li>Four-track and four-release favorites shelves</li>
-                <li>Community averages and a live ratings feed</li>
-              </ul>
-            </div>
-            <div class="feature__visual">
-              <div class="card card--rate">
-                <div class="rate__art art--2"></div>
-                <p class="rate__track">Low Orbit — Mira Sound</p>
-                <div class="rate__stars">
-                  <span class="rate__big">★★★★</span><span class="rate__big half">★</span>
-                  <span class="rate__val">4.5</span>
-                </div>
-                <p class="rate__review">"Weightless. The low end on this is unreal." </p>
-                <p class="rate__community">Community avg 4.3 · 61 ratings</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Feature row 4 -->
-          <div class="feature feature--reverse reveal">
-            <div class="feature__text">
-              <span class="feature__kicker">Respect</span>
-              <h3>Discovery that respects the music — and you</h3>
-              <p>
-                No in-app player hijacking your attention, no autoplay, no listening telemetry. Every
-                track links out to its real source so artists and producers get the play where it
-                counts. Search the whole catalog instantly by track, artist, producer, or scene.
-              </p>
-              <ul class="feature__points">
-                <li>Links out to the original source — no ripped audio</li>
-                <li>Instant in-memory search across the catalog</li>
-                <li>No ads, no trackers, no dark patterns</li>
-              </ul>
-            </div>
-            <div class="feature__visual">
-              <div class="card card--search">
-                <div class="search__bar">⌕ aria</div>
-                <div class="search__res"><span class="dot dot--a"></span> aria <em>producer</em></div>
-                <div class="search__res"><span class="dot dot--b"></span> Glasshouse <em>track</em></div>
-                <div class="search__res"><span class="dot dot--c"></span> ambient <em>scene</em></div>
-                <div class="search__res"><span class="dot dot--d"></span> neo tokyo <em>artist</em></div>
-              </div>
-            </div>
+          <div class="feat__item">
+            <h2>It sends you to the real source</h2>
+            <p>
+              There is no player inside earlyworld. Every track opens on its original source, so the
+              play lands where it should and the artist and producer get credit for it. No ripped
+              audio, no autoplay, no listening history sold on.
+            </p>
           </div>
         </div>
       </section>
 
-      <!-- ======================= HOW IT WORKS ======================= -->
-      <section class="how" id="how">
-        <div class="container">
-          <div class="features__head reveal">
-            <span class="eyebrow eyebrow--center">Getting started</span>
-            <h2 class="section__title">From sign-up to your first match in minutes</h2>
-          </div>
+      <!-- HOW IT WORKS -->
+      <section class="band" id="how">
+        <div class="wrap narrow">
+          <h2 class="band__h">How it works</h2>
           <ol class="steps">
-            <li class="step reveal">
-              <span class="step__num">1</span>
-              <h3>Pick your scenes</h3>
-              <p>A quick six-step setup. Choose the sounds you live in and the artists you already follow.</p>
-            </li>
-            <li class="step reveal">
-              <span class="step__num">2</span>
-              <h3>Make your first saves</h3>
-              <p>Save five tracks to seed your taste. Rare picks carry more weight from the very start.</p>
-            </li>
-            <li class="step reveal">
-              <span class="step__num">3</span>
-              <h3>Rate &amp; credit</h3>
-              <p>Drop half-star ratings, short reviews, and add any producer credits we're missing.</p>
-            </li>
-            <li class="step reveal">
-              <span class="step__num">4</span>
-              <h3>Match &amp; follow</h3>
-              <p>Get matched with listeners who share your rarest saves, and follow the people you trust.</p>
-            </li>
+            <li>Pick the scenes and artists you already follow.</li>
+            <li>Save five tracks to start your profile.</li>
+            <li>Rate what you hear and add any producer credits that are missing.</li>
+            <li>Get matched with listeners who saved the same rare tracks.</li>
           </ol>
+          <p class="who">
+            It is built for people who care about music past the charts: listeners who want their
+            finds to count, producers who want their name on their records, and anyone building a
+            profile other people actually trust for new sounds.
+          </p>
         </div>
       </section>
 
-      <!-- ======================= WHO IT'S FOR ======================= -->
-      <section class="who" id="who">
-        <div class="container">
-          <div class="features__head reveal">
-            <span class="eyebrow eyebrow--center">Who it's for</span>
-            <h2 class="section__title">If you've ever said "I found them first"</h2>
-          </div>
-          <div class="who__grid">
-            <div class="persona reveal">
-              <div class="persona__icon">◈</div>
-              <h3>Crate-diggers</h3>
-              <p>You live for the deep cut. earlyworld rewards finding it early and keeps a record of your taste.</p>
-            </div>
-            <div class="persona reveal">
-              <div class="persona__icon">♫</div>
-              <h3>Producers</h3>
-              <p>Finally, a place where your name sits next to the artist's and your catalog has a home.</p>
-            </div>
-            <div class="persona reveal">
-              <div class="persona__icon">☆</div>
-              <h3>Tastemakers</h3>
-              <p>Build a profile people follow for the next sound, not last year's charts.</p>
-            </div>
-            <div class="persona reveal">
-              <div class="persona__icon">⬡</div>
-              <h3>Scene heads</h3>
-              <p>Go deep on a subgenre, track its best releases, and find the listeners who share it.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ======================= TESTIMONIALS ======================= -->
-      <section class="quotes">
-        <div class="container">
-          <div class="features__head reveal">
-            <span class="eyebrow eyebrow--center">Early reactions</span>
-            <h2 class="section__title">What early users are saying</h2>
-          </div>
-          <div class="quotes__grid">
-            <figure class="quote reveal">
-              <blockquote>"First app that treats the producer like they matter. That alone sold me."</blockquote>
-              <figcaption><span class="quote__av av--1"></span> Jordan — beatmaker</figcaption>
-            </figure>
-            <figure class="quote reveal">
-              <blockquote>"My matches are scarily good. Turns out the rare saves really do say everything."</blockquote>
-              <figcaption><span class="quote__av av--2"></span> Priya — crate-digger</figcaption>
-            </figure>
-            <figure class="quote reveal">
-              <blockquote>"No autoplay, no ads, links straight to the source. It just respects the music."</blockquote>
-              <figcaption><span class="quote__av av--3"></span> Marcus — DJ</figcaption>
-            </figure>
-          </div>
-          <p class="quotes__note">Illustrative reactions for launch — replace with real user quotes as they come in.</p>
-        </div>
-      </section>
-
-      <!-- ======================= FAQ ======================= -->
+      <!-- FAQ -->
       <section class="faq" id="faq">
-        <div class="container faq__inner">
-          <div class="features__head reveal">
-            <span class="eyebrow eyebrow--center">FAQ</span>
-            <h2 class="section__title">Good questions</h2>
+        <div class="wrap narrow">
+          <h2 class="band__h">Questions</h2>
+
+          <div class="qa">
+            <h3>Can I play music in the app?</h3>
+            <p>
+              No. earlyworld links out to each track's original source instead, so artists and
+              producers get the play. There is no built-in player and no autoplay.
+            </p>
           </div>
-          <div class="faq__list reveal">
-            <details>
-              <summary>Can I play music inside the app?</summary>
-              <p>
-                No — and that's on purpose. earlyworld links out to each track's real source so artists
-                and producers get the play where it counts. There's no in-app player, no autoplay, and
-                no listening telemetry.
-              </p>
-            </details>
-            <details>
-              <summary>What makes a save "rare"?</summary>
-              <p>
-                Rarity is based on how few people have saved a track. The fewer the saves, the more a
-                shared save weighs in taste matching — so finding and saving something early is what
-                connects you to the right people.
-              </p>
-            </details>
-            <details>
-              <summary>Where do producer credits come from?</summary>
-              <p>
-                Credits are enriched conservatively when a track is added, and any credit you enter as a
-                user takes precedence. Missing credits stay blank rather than guessed.
-              </p>
-            </details>
-            <details>
-              <summary>How much does it cost?</summary>
-              <p>
-                earlyworld is launching with early access. There are no ads and no trackers — join the
-                list below and we'll tell you the moment your spot is ready.
-              </p>
-            </details>
-            <details>
-              <summary>Which platforms are supported?</summary>
-              <p>
-                earlyworld is a native app for iOS and Android. It's not a web app — the experience is
-                built for your phone.
-              </p>
-            </details>
+
+          <div class="qa">
+            <h3>What makes a save "rare"?</h3>
+            <p>
+              Rarity is just how few people have saved a track. A shared rare save counts for more in
+              matching than a popular one, so finding something early is what connects you to the
+              right people.
+            </p>
+          </div>
+
+          <div class="qa">
+            <h3>Where do the producer credits come from?</h3>
+            <p>
+              They are filled in carefully when a track is added, and any credit you enter yourself
+              wins. When a credit is unknown it stays blank rather than being guessed.
+            </p>
+          </div>
+
+          <div class="qa">
+            <h3>What does it cost?</h3>
+            <p>
+              earlyworld is launching in early access. There are no ads and nothing is tracked. Leave
+              your email below and we will tell you when a spot opens.
+            </p>
+          </div>
+
+          <div class="qa">
+            <h3>Which platforms does it run on?</h3>
+            <p>It is a native app for iOS and Android. There is no web version.</p>
           </div>
         </div>
       </section>
 
-      <!-- ======================= FINAL CTA ======================= -->
-      <section class="cta" id="get">
-        <div class="cta__glow" aria-hidden="true"></div>
-        <div class="container cta__inner reveal">
-          <img src="assets/earlyworld-logo.png" alt="" class="cta__mark" />
-          <h2>Be early.</h2>
-          <p>Join the early access list and be among the first to dig through earlyworld.</p>
-          <form class="cta__form" id="waitlist" novalidate>
-            <input type="email" name="email" placeholder="you@email.com" aria-label="Email address" required />
-            <button type="submit" class="btn btn--primary">Request access</button>
+      <!-- ACCESS -->
+      <section class="access" id="access">
+        <div class="wrap narrow">
+          <h2>earlyworld is launching soon.</h2>
+          <p>Leave your email and we will let you know when you can get in.</p>
+          <form id="waitlist" novalidate>
+            <input type="email" name="email" placeholder="you@email.com" aria-label="Email" required />
+            <button type="submit" class="btn">Request access</button>
           </form>
-          <p class="cta__fine" id="formNote">No spam. One email when your spot opens.</p>
+          <p class="note" id="formNote">One email when your spot opens. Nothing else.</p>
         </div>
       </section>
     </main>
 
-    <!-- ======================= FOOTER ======================= -->
-    <footer class="footer">
-      <div class="container footer__inner">
-        <div class="footer__brand">
-          <img src="assets/earlyworld-logo.png" alt="" class="brand__mark" />
-          <span class="brand__name">earlyworld</span>
-          <p class="footer__tag">Underground music, and the people who find it first.</p>
-        </div>
-        <nav class="footer__cols" aria-label="Footer">
-          <div>
-            <h4>Product</h4>
-            <a href="#features">Features</a>
-            <a href="#how">How it works</a>
-            <a href="#who">Who it's for</a>
-          </div>
-          <div>
-            <h4>Company</h4>
-            <a href="#faq">FAQ</a>
-            <a href="#get">Early access</a>
-          </div>
-          <div>
-            <h4>Legal</h4>
-            <a href="#">Privacy</a>
-            <a href="#">Terms</a>
-            <a href="mailto:hello@earlyworld.app">Support</a>
-          </div>
+    <footer class="foot">
+      <div class="wrap foot__inner">
+        <span>earlyworld</span>
+        <nav>
+          <a href="#what">What it is</a>
+          <a href="#how">How it works</a>
+          <a href="#faq">FAQ</a>
+          <a href="mailto:hello@earlyworld.app">Contact</a>
         </nav>
-      </div>
-      <div class="container footer__base">
-        <span>© <span id="year"></span> earlyworld. All rights reserved.</span>
-        <span>Made for the underground.</span>
+        <small>© <span id="year"></span> earlyworld</small>
       </div>
     </footer>
 
