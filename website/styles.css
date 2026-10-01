@@ -137,17 +137,20 @@ img {
   max-width: 460px;
 }
 
-/* ---------- Phone ---------- */
+/* ---------- Phone (animated demo) ---------- */
 .phone-wrap {
   display: flex;
   justify-content: center;
 }
 .phone {
-  width: 280px;
+  position: relative;
+  width: 288px;
   background: var(--bg);
   border: 1px solid var(--line);
-  border-radius: 28px;
-  padding: 18px 14px;
+  border-radius: 30px;
+  padding: 18px 14px 20px;
+  box-shadow: 0 24px 60px -30px rgba(0, 0, 0, 0.85);
+  overflow: hidden;
 }
 .phone__bar {
   display: flex;
@@ -161,67 +164,204 @@ img {
   height: 24px;
   border-radius: 6px;
 }
-.row {
+.live {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--faint);
+}
+.live i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 1.8s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.chips {
+  display: flex;
+  gap: 6px;
+  padding-bottom: 6px;
+}
+.chip {
+  font-size: 0.66rem;
+  padding: 4px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--faint);
+}
+.chip.on {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.prow {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 11px;
-  padding: 11px 2px;
+  padding: 11px 8px;
+  margin: 0 -6px;
+  border-radius: 10px;
   border-top: 1px solid var(--line);
+  transition: background 0.4s ease, transform 0.4s ease;
+  /* entrance */
+  opacity: 0;
+  transform: translateY(8px);
+}
+.phone.ready .prow {
+  opacity: 1;
+  transform: none;
+}
+.prow.focus {
+  background: #101a30;
+  border-top-color: transparent;
 }
 .art {
   width: 42px;
   height: 42px;
   border-radius: 7px;
   flex-shrink: 0;
-  background: #18223a;
 }
 .art--1 {
-  background: #3a3366;
+  background: linear-gradient(135deg, #2a2440, #5b4fa0);
 }
 .art--2 {
-  background: #22435f;
+  background: linear-gradient(135deg, #1a3147, #3f6f8e);
 }
 .art--3 {
-  background: #2a2a4a;
+  background: linear-gradient(135deg, #26304f, #6f7bc4);
 }
-.row__meta {
+.art--4 {
+  background: linear-gradient(135deg, #30283f, #8a6fb0);
+}
+.pmeta {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
 }
-.row__meta b {
-  font-size: 0.9rem;
+.pmeta b {
+  font-size: 0.86rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.row__meta i {
+.pmeta i {
   font-style: normal;
-  font-size: 0.8rem;
-  color: var(--muted);
-}
-.row__meta small {
-  font-size: 0.72rem;
-  color: var(--accent);
-}
-.row__right {
-  text-align: right;
   font-size: 0.78rem;
-  color: var(--text);
+  color: var(--muted);
 }
-.row__right em {
-  font-style: normal;
-  color: var(--faint);
+.pmeta small {
   font-size: 0.7rem;
-}
-.row__right .rare {
   color: var(--accent);
 }
-.phone__match {
-  margin-top: 14px;
-  padding: 11px 12px;
-  border: 1px solid var(--line);
+
+.save {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  background: none;
+  border: 0;
+  color: var(--faint);
+  font-family: inherit;
+  cursor: pointer;
+  min-width: 26px;
+}
+.save .glyph {
+  font-size: 1.05rem;
+  line-height: 1;
+  transition: transform 0.25s ease, color 0.25s ease;
+}
+.save .count {
+  font-size: 0.66rem;
+}
+.prow.saved .save {
+  color: var(--accent);
+}
+.prow.saved .glyph {
+  transform: scale(1.3);
+}
+
+.rare-pill {
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bg);
+  background: var(--accent);
+  padding: 2px 6px;
+  border-radius: 999px;
+  opacity: 0;
+  transform: scale(0.7);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.prow.saved[data-rare] .rare-pill {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.ptoast {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--accent);
   border-radius: 10px;
-  font-size: 0.82rem;
+  background: #101a30;
+  font-size: 0.76rem;
   color: var(--muted);
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+  pointer-events: none;
+}
+.ptoast.show {
+  opacity: 1;
+  transform: none;
+}
+.ptoast b {
+  color: var(--text);
+  font-weight: 600;
+}
+.ptoast__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phone .prow {
+    opacity: 1;
+    transform: none;
+  }
+  .live i {
+    animation: none;
+    opacity: 1;
+  }
 }
 
 /* ---------- Band (what / how) ---------- */

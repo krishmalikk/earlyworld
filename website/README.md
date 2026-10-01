@@ -38,6 +38,15 @@ FAQ, and an early-access email capture. Deliberately plain: no gradient text, no
 glow blobs, no fabricated stats or testimonials, one accent colour used sparingly,
 system fonts.
 
+## The phone demo
+
+The hero phone runs a small looping demo (`script.js`): it focuses a track, saves
+it so the count ticks up, pops a "rare" badge, and slides up a taste match. It
+honours `prefers-reduced-motion` by falling back to a static state. The artists
+shown are **real underground acts with accurate producer credits** (billy woods /
+Kenny Segal, MIKE / dj blackpower, Navy Blue, Wiki & MIKE / The Alchemist); the
+save counts are illustrative sample data, not live figures.
+
 ## Before going live
 
 - **Waitlist form** (`script.js`) is front-end only. Point it at a real endpoint
