@@ -57,7 +57,15 @@ export function Profile({ uid }: { uid: string }) {
   return (
     <Page>
       {own ? (
-        <View style={{ alignItems: 'flex-end' }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Share your profile"
+            onPress={() => router.push('/share')}
+            style={{ padding: space[12] }}
+          >
+            <Ionicons name="share-outline" size={24} color={c.text} />
+          </Pressable>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Settings"
@@ -138,11 +146,7 @@ export function Profile({ uid }: { uid: string }) {
           ).map(([label, count], index) => (
             <View key={label}>
               {index > 0 ? <View style={styles.statDivider} /> : null}
-              <View
-                accessible
-                accessibilityLabel={`${count} ${label}`}
-                style={styles.statRow}
-              >
+              <View accessible accessibilityLabel={`${count} ${label}`} style={styles.statRow}>
                 <Text style={s.muted}>{label}</Text>
                 <Text style={styles.number}>{count.toLocaleString()}</Text>
               </View>
