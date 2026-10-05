@@ -10,7 +10,13 @@ function files(dir: string): string[] {
 test('server snapshots stay outside Zustand; screens cannot introduce one-shot reads', () => {
   for (const file of [...files('app'), ...files('src')].filter((f) => /\.tsx?$/.test(f))) {
     const text = readFileSync(file, 'utf8');
-    assert.doesNotMatch(text, /\b(getDoc|getDocs)\s*\(/, file);
+    // The shared cursor pager may fetch one bounded page of IDs; records remain subscribed.
+    if (file !== 'src/data/catalog.tsx') assert.doesNotMatch(text, /\b(getDoc|getDocs)\s*\(/, file);
+    else {
+      assert.match(text, /limit\(25\)/);
+      assert.match(text, /startAfter/);
+      assert.match(text, /onSnapshot/);
+    }
     if (file.startsWith('src/state/'))
       assert.doesNotMatch(text, /onSnapshot|Track\[\]|User\[\]|Rotation\[\]/, file);
   }

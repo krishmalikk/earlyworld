@@ -10,6 +10,7 @@ import {
 // Web SDK is ONLY an emulator test driver; the native application never imports it.
 import {
   doc,
+  runTransaction,
   setDoc,
   updateDoc,
   deleteDoc,
@@ -21,6 +22,7 @@ import {
   where,
   getDocs,
 } from 'firebase/firestore';
+import { applySaveIntent, type SaveSource } from '../shared/saves.ts';
 let env: RulesTestEnvironment;
 const baseUser = {
   username: '',
@@ -48,7 +50,7 @@ const baseTrack = {
 };
 before(async () => {
   env = await initializeTestEnvironment({
-    projectId: 'demo-earlyworld',
+    projectId: 'demo-earlyworld-catalog-rules',
     firestore: { rules: await readFile('firestore.rules', 'utf8') },
   });
 });
@@ -106,7 +108,7 @@ test('valid owner save succeeds, spoofed denormalized credit and other-user writ
   await assertFails(updateDoc(doc(db, 'users/alice/saves/t'), { title: 'Changed' }));
   await assertSucceeds(deleteDoc(doc(db, 'users/alice/saves/t')));
 });
-test('username reservation is atomic, exclusive, and immutable', async () => {
+test('username publication and reservation cannot bypass the server moderation queue', async () => {
   const db = env.authenticatedContext('alice').firestore();
   await assertFails(
     setDoc(doc(db, 'usernames/early'), { uid: 'alice', createdAt: serverTimestamp() }),
@@ -118,7 +120,8 @@ test('username reservation is atomic, exclusive, and immutable', async () => {
     usernameLower: 'early',
     onboardingStep: 2,
   });
-  await assertSucceeds(batch.commit());
+  await assertFails(batch.commit());
+  await env.withSecurityRulesDisabled(async ctx=>{await setDoc(doc(ctx.firestore(),'usernames/early'),{uid:'alice',createdAt:new Date()});});
   const other = env.authenticatedContext('bob').firestore(),
     second = writeBatch(other);
   second.set(doc(other, 'usernames/early'), { uid: 'bob', createdAt: serverTimestamp() });
@@ -156,20 +159,27 @@ test('new account defaults validated and signed-out catalog is readable', async 
   );
   await assertSucceeds(getDoc(doc(env.unauthenticatedContext().firestore(), 'tracks/t')));
 });
-test('comments validate ownership, body, and deletion', async () => {
+test('comments require server moderation; authors can remove published comments', async () => {
   const db = env.authenticatedContext('alice').firestore(),
     ref = doc(db, 'tracks/t/comments/c');
   await assertFails(setDoc(ref, { uid: 'bob', body: 'fake', createdAt: serverTimestamp() }));
   await assertFails(setDoc(ref, { uid: 'alice', body: '', createdAt: serverTimestamp() }));
-  await assertSucceeds(
+  await assertFails(
     setDoc(ref, { uid: 'alice', body: 'That producer tag.', createdAt: serverTimestamp() }),
+  );
+  await env.withSecurityRulesDisabled((ctx) =>
+    setDoc(doc(ctx.firestore(), 'tracks/t/comments/c'), {
+      uid: 'alice',
+      body: 'Approved',
+      createdAt: new Date(),
+    }),
   );
   await assertFails(
     deleteDoc(doc(env.authenticatedContext('bob').firestore(), 'tracks/t/comments/c')),
   );
   await assertSucceeds(deleteDoc(ref));
 });
-test('private matches stay private while leaderboard collection-group reads work', async () => {
+test('matches and leaderboard bypasses are private; cross-account reads go through server', async () => {
   await env.withSecurityRulesDisabled(async (ctx) => {
     await setDoc(doc(ctx.firestore(), 'users/alice/matches/bob'), { score: 1 });
     await setDoc(doc(ctx.firestore(), 'users/alice/rotation/artist_a'), {
@@ -179,8 +189,210 @@ test('private matches stay private while leaderboard collection-group reads work
   });
   const db = env.authenticatedContext('bob').firestore();
   await assertFails(getDoc(doc(db, 'users/alice/matches/bob')));
-  const result = await assertSucceeds(
+  await assertFails(
     getDocs(query(collectionGroup(db, 'rotation'), where('entityId', '==', 'artist_a'))),
   );
-  assert.equal(result.size, 1);
+});
+
+test('ratings are readable only to signed-in listeners and all rating writes are server-only', async () => {
+  const path = 'ratings/test-rating';
+  await env.withSecurityRulesDisabled((ctx) =>
+    setDoc(doc(ctx.firestore(), path), {
+      uid: 'alice',
+      trackId: 't',
+      halfStars: 8,
+      review: 'A take',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }),
+  );
+  for (const uid of ['alice', 'bob']) {
+    const ref = doc(env.authenticatedContext(uid).firestore(), path);
+    await (uid === 'alice' ? assertSucceeds : assertFails)(getDoc(ref));
+    await assertFails(updateDoc(ref, { halfStars: 10 }));
+    await assertFails(deleteDoc(ref));
+    await assertFails(
+      setDoc(doc(env.authenticatedContext(uid).firestore(), 'ratings/new'), {
+        uid,
+        trackId: 't',
+        halfStars: 10,
+      }),
+    );
+  }
+  await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), path)));
+});
+test('rating aggregates and pinned favorites cannot be edited directly on legacy profiles/tracks', async () => {
+  const client = env.authenticatedContext('alice').firestore();
+  for (const field of ['ratingCount', 'reviewCount', 'favoriteTrackIds'])
+    await assertFails(
+      updateDoc(doc(client, 'users/alice'), {
+        [field]: field === 'favoriteTrackIds' ? ['t'] : 100,
+      }),
+    );
+  await assertFails(
+    updateDoc(doc(client, 'tracks/t'), { ratingCount: 999, ratingHalfStarSum: 9990 }),
+  );
+});
+
+test('SoundCloud OAuth tokens and identity mappings are inaccessible to clients', async () => {
+  for (const path of ['_integrations/soundcloudOAuth', '_soundcloudTracks/id']) {
+    await env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), path), { value: 'private-test-value' }),
+    );
+    for (const context of [env.unauthenticatedContext(), env.authenticatedContext('alice')]) {
+      const ref = doc(context.firestore(), path);
+      await assertFails(getDoc(ref));
+      await assertFails(setDoc(ref, { value: 'modified' }));
+    }
+  }
+});
+
+test('save retries use current metadata, preserve timestamps, and allow more than five saves', async () => {
+  const db = env.authenticatedContext('alice').firestore();
+  const save = (id: string, desired: boolean) =>
+    runTransaction(db, (tx) =>
+      applySaveIntent(
+        {
+          get: async (path) => (await tx.get(doc(db, path))).data() as SaveSource | undefined,
+          set: (path, value) => {
+            tx.set(doc(db, path), value);
+          },
+          delete: (path) => {
+            tx.delete(doc(db, path));
+          },
+        },
+        'alice',
+        id,
+        desired,
+        serverTimestamp(),
+      ),
+    );
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    for (let n = 0; n < 6; n++)
+      await setDoc(doc(ctx.firestore(), `tracks/retry${n}`), {
+        ...baseTrack,
+        title: `Current title ${n}`,
+        producerId: null,
+        producerName: null,
+      });
+  });
+  for (let n = 0; n < 6; n++) await assertSucceeds(save(`retry${n}`, true));
+  const ref = doc(db, 'users/alice/saves/retry0');
+  const before = (await getDoc(ref)).data()!;
+  // Reproduce the old setDoc-on-existing-document permission error.
+  await assertFails(setDoc(ref, { ...before, savedAt: serverTimestamp() }));
+  await Promise.all([assertSucceeds(save('retry0', true)), assertSucceeds(save('retry0', true))]);
+  const after = (await getDoc(ref)).data()!;
+  assert.equal(after.savedAt.toMillis(), before.savedAt.toMillis());
+  assert.equal(after.title, 'Current title 0');
+  assert.equal(after.producerId, null);
+  for (let n = 0; n < 6; n++)
+    assert.ok((await getDoc(doc(db, `users/alice/saves/retry${n}`))).exists());
+  await assertSucceeds(save('retry0', false));
+  await assertSucceeds(save('retry0', false));
+  assert.equal((await getDoc(ref)).exists(), false);
+  await assert.rejects(save('missing-track', true), /no longer available/);
+});
+
+test('producer credits are signed-in readable and server-owned', async () => {
+  await env.withSecurityRulesDisabled((ctx) =>
+    setDoc(doc(ctx.firestore(), 'producers/p/productions/1'), { title: 'Credit' }),
+  );
+  await assertSucceeds(
+    getDoc(doc(env.authenticatedContext('alice').firestore(), 'producers/p/productions/1')),
+  );
+  await assertFails(
+    getDoc(doc(env.unauthenticatedContext().firestore(), 'producers/p/productions/1')),
+  );
+  await assertFails(
+    setDoc(doc(env.authenticatedContext('alice').firestore(), 'producers/p/productions/2'), {
+      title: 'Fake credit',
+    }),
+  );
+  await assertFails(
+    deleteDoc(doc(env.authenticatedContext('alice').firestore(), 'producers/p/productions/1')),
+  );
+});
+
+test('release metadata, opinions, and favorites are server-owned and signed-in readable', async () => {
+  const signed = env.authenticatedContext('alice').firestore();
+  const anonymous = env.unauthenticatedContext().firestore();
+  for (const path of ['releases/album', 'releaseRatings/opinion']) {
+    await env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), path), { uid: 'alice', title: 'Album', halfStars: 8 }),
+    );
+    await assertSucceeds(getDoc(doc(signed, path)));
+    await assertFails(getDoc(doc(anonymous, path)));
+    await assertFails(setDoc(doc(signed, path), { halfStars: 10 }));
+    await assertFails(deleteDoc(doc(signed, path)));
+  }
+  await assertFails(updateDoc(doc(signed, 'users/alice'), { favoriteReleaseIds: ['album'] }));
+  await assertFails(
+    updateDoc(doc(signed, 'users/alice'), { releaseRatingCount: 99, releaseReviewCount: 99 }),
+  );
+  await assertFails(getDoc(doc(signed, '_releaseSync/artist')));
+});
+
+test('catalog search, queue controls, jobs, and provider snapshots are private and server-owned', async () => {
+  const signed = env.authenticatedContext('alice').firestore();
+  const anonymous = env.unauthenticatedContext().firestore();
+  for (const path of [
+    '_catalogSearch/tracks_t',
+    '_catalogControl/search',
+    '_catalogControl/genius',
+    '_catalogJobs/t',
+    '_catalogReindex/a',
+    '_providerMetadata/t/sources/soundcloud',
+  ]) {
+    await env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), path), { marker: true }),
+    );
+    await assertFails(getDoc(doc(signed, path)));
+    await assertFails(getDoc(doc(anonymous, path)));
+    await assertFails(setDoc(doc(signed, path), { enabled: true }));
+    await assertFails(deleteDoc(doc(signed, path)));
+  }
+});
+
+test('private social state cannot be read or published directly, including admin clients', async () => {
+  for (const path of [
+    'posts/p',
+    '_postDrafts/p',
+    '_socialMedia/m',
+    '_postComments/c',
+    '_moderation/m',
+    '_socialReports/r',
+    '_socialAccounts/alice',
+    'users/alice/postBookmarks/p',
+  ]) {
+    await env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), path), { uid: 'alice', status: 'pending' }),
+    );
+    for (const client of [
+      env.authenticatedContext('alice'),
+      env.authenticatedContext('bob'),
+      env.authenticatedContext('mod', { admin: true }),
+    ]) {
+      await assertFails(getDoc(doc(client.firestore(), path)));
+      await assertFails(setDoc(doc(client.firestore(), path), { status: 'published' }));
+    }
+  }
+});
+test('profile text and avatars cannot bypass moderation; blocking prevents new follows', async () => {
+  const client = env.authenticatedContext('alice').firestore();
+  await assertFails(updateDoc(doc(client, 'users/alice'), { bio: 'Direct publication' }));
+  await assertFails(
+    updateDoc(doc(client, 'users/alice'), { avatarUrl: 'https://example.com/photo.jpg' }),
+  );
+  await assertFails(getDoc(doc(client, 'users/bob')));
+  await env.withSecurityRulesDisabled((ctx) =>
+    setDoc(doc(ctx.firestore(), 'users/alice/blockedBy/bob'), { uid: 'bob' }),
+  );
+  await assertFails(
+    setDoc(doc(client, 'users/alice/following/bob'), {
+      targetId: 'bob',
+      targetType: 'user',
+      followedAt: serverTimestamp(),
+    }),
+  );
 });

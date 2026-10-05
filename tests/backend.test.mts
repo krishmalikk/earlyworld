@@ -84,10 +84,10 @@ test('comments cap at five per entity per day, retries do not count, producer ea
   const now = new Date('2026-09-22T12:00:00Z');
   for (let i = 0; i < 7; i++)
     await db.runTransaction((tx) =>
-      engagementInTransaction(tx, 'a', `t${i}`, track, 'comment', 0, `event${i}`, now),
+      engagementInTransaction(tx, 'a', `t${i}`, track, 'comment', `event${i}`, now),
     );
   await db.runTransaction((tx) =>
-    engagementInTransaction(tx, 'a', 't0', track, 'comment', 0, 'event0', now),
+    engagementInTransaction(tx, 'a', 't0', track, 'comment', 'event0', now),
   );
   for (const id of ['artist_a', 'producer_p']) {
     const stats = (await db.doc(`users/a/engagementStats/${id}`).get()).data()!;
@@ -100,7 +100,7 @@ test('delayed onboarding saves do not grant engagement or Rotation', async () =>
   await user('a', true);
   await db.doc('users/a').update({ onboardingCompletedAt: Timestamp.fromMillis(10000) });
   await db.runTransaction((tx) =>
-    engagementInTransaction(tx, 'a', 't', track, 'save', 0, 'old-save', new Date(9000)),
+    engagementInTransaction(tx, 'a', 't', track, 'save', 'old-save', new Date(9000)),
   );
   assert.equal((await db.collection('users/a/engagementStats').get()).size, 0);
 });
@@ -115,51 +115,6 @@ test('matching writes top rare overlap and deletes stale results', async () => {
   assert.equal(matches.docs[0].id, 'b');
   assert.equal(matches.docs[0].data().sharedTracks[0].saveCount, 2);
 });
-test('listen callable requires a real elapsed session and enforces the rolling hour', async () => {
-  const { recordEngagement } = await import('../functions/src/engagement.ts');
-  await user('a', true);
-  await db.doc('tracks/t').set({ ...track, durationSeconds: 100 });
-  await db.doc('_playbackSessions/session1').set({
-    uid: 'a',
-    trackId: 't',
-    startedAt: Timestamp.fromMillis(Date.now() - 70000),
-    used: false,
-  });
-  const data = {
-    trackId: 't',
-    entityId: 'artist_a',
-    entityType: 'artist',
-    eventType: 'listen',
-    sessionId: 'session1',
-    seconds: 60,
-    duration: 100,
-  };
-  await assert.rejects(() => recordEngagement.run({ auth: { uid: 'intruder' }, data } as any));
-  const first = await recordEngagement.run({ auth: { uid: 'a' }, data } as any);
-  assert.equal(first.recorded, true);
-  await db.doc('_playbackSessions/session2').set({
-    uid: 'a',
-    trackId: 't',
-    startedAt: Timestamp.fromMillis(Date.now() - 70000),
-    used: false,
-  });
-  const repeat = await recordEngagement.run({
-    auth: { uid: 'a' },
-    data: { ...data, sessionId: 'session2' },
-  } as any);
-  assert.equal(repeat.recorded, false);
-  assert.equal((await db.doc('users/a/engagementStats/artist_a').get()).data()!.listenSeconds, 60);
-  assert.equal(
-    (await db.doc('users/a/engagementStats/producer_p').get()).data()!.listenSeconds,
-    60,
-  );
-  await db
-    .doc('_playbackSessions/too-soon')
-    .set({ uid: 'a', trackId: 't', startedAt: Timestamp.now(), used: false });
-  await assert.rejects(() =>
-    recordEngagement.run({ auth: { uid: 'a' }, data: { ...data, sessionId: 'too-soon' } } as any),
-  );
-});
 test('nightly Rotation creates independently earned artist and producer certifications', async () => {
   await user('a', true);
   await db.doc('tracks/t').set({ ...track, saveCount: 2 });
@@ -171,7 +126,7 @@ test('nightly Rotation creates independently earned artist and producer certific
     ['second', now],
   ] as const)
     await db.runTransaction((tx) =>
-      engagementInTransaction(tx, 'a', 't', track, 'listen', 60, event, at),
+      engagementInTransaction(tx, 'a', 't', track, 'save', event, at),
     );
   await computeRotationFor('a', now);
   const rows = await db.collection('users/a/rotation').get();

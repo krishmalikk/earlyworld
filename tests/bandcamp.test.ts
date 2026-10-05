@@ -7,6 +7,9 @@ test('Bandcamp resolves escaped public track metadata without downloading audio'
   );
   assert.equal(result.title, 'A & B');
   assert.equal(result.artistName, 'Artist');
-  assert.match(result.embedUrl!, /track=12345/);
-  assert.equal(bandcampMetadata('<meta property="og:title" content="No player">').embedUrl, null);
+  assert.deepEqual(bandcampMetadata('<meta property="og:title" content="No player">'), {
+    title: 'No player',
+    artworkUrl: '',
+    artistName: '',
+  });
 });

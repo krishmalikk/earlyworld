@@ -10,7 +10,6 @@ import {
   similarity,
   cappedUnion,
 } from '../shared/domain';
-import { PlaybackTracker } from '../shared/playback';
 test('savers: 200th allowed, 201st permanently excludes track, retries cannot append duplicates', () => {
   let state = { savers: Array.from({ length: 199 }, (_, i) => `u${i}`), saversCapped: false };
   state = nextSavers(state.savers, state.saversCapped, 'u199');
@@ -80,19 +79,4 @@ test('canonical URLs deduplicate platform aliases and reject unsafe hosts', () =
     assert.throws(() => normalizeSource(url));
   assert.equal(similarity('Song (feat. Other)', 'song'), 1);
   assert.ok(similarity('Xaviersobased', 'Xavier') < 0.85);
-});
-test('playback excludes autoplay, seeking and replaying the same seconds', () => {
-  const tracker = new PlaybackTracker();
-  for (let i = 0; i < 70; i++) assert.equal(tracker.sample(i, 100, true, i * 1000), null);
-  tracker.interact();
-  tracker.resetPosition();
-  assert.equal(tracker.sample(0, 100, true, 70000), null);
-  assert.equal(tracker.sample(90, 100, true, 71000), null);
-  for (let i = 0; i < 30; i++) assert.equal(tracker.sample(i, 100, true, 72000 + i * 1000), null);
-  for (let i = 0; i < 30; i++) assert.equal(tracker.sample(i, 100, true, 102000 + i * 1000), null);
-  let result = null;
-  for (let i = 30; i < 65; i++)
-    result = tracker.sample(i, 100, true, 132000 + (i - 30) * 1000) || result;
-  assert.ok(result);
-  assert.equal(tracker.sample(66, 100, true, 169000), null);
 });
