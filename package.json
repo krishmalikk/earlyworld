@@ -34,7 +34,8 @@
     "test:social": "DEBUG= FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 node --import tsx --test --test-concurrency=1 tests/social.backend.test.mts tests/messages.backend.test.mts tests/ratings.backend.test.mts tests/release-ratings.backend.test.mts tests/firestore.rules.test.mts",
     "test:social:storage": "DEBUG= firebase emulators:exec --config firebase.social-emulators.json --project demo-earlyworld-social-storage --only firestore,storage 'node --import tsx --test tests/social.storage.test.mts'",
     "test:media": "npm --prefix services/media-worker test",
-    "social:admin": "node --import tsx scripts/social-admin.ts"
+    "social:admin": "node --import tsx scripts/social-admin.ts",
+    "social:test-community": "tsx scripts/test-community.ts"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
