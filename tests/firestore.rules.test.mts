@@ -18,6 +18,8 @@ import {
   writeBatch,
   getDoc,
   collectionGroup,
+  collection,
+  orderBy,
   query,
   where,
   getDocs,
@@ -121,7 +123,9 @@ test('username publication and reservation cannot bypass the server moderation q
     onboardingStep: 2,
   });
   await assertFails(batch.commit());
-  await env.withSecurityRulesDisabled(async ctx=>{await setDoc(doc(ctx.firestore(),'usernames/early'),{uid:'alice',createdAt:new Date()});});
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'usernames/early'), { uid: 'alice', createdAt: new Date() });
+  });
   const other = env.authenticatedContext('bob').firestore(),
     second = writeBatch(other);
   second.set(doc(other, 'usernames/early'), { uid: 'bob', createdAt: serverTimestamp() });
@@ -394,5 +398,52 @@ test('profile text and avatars cannot bypass moderation; blocking prevents new f
       targetType: 'user',
       followedAt: serverTimestamp(),
     }),
+  );
+});
+test('conversations and messages are readable by current members only and never client-written', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, 'conversations/c'), { type: 'dm', memberIds: ['alice', 'bob'] });
+    await setDoc(doc(db, 'conversations/c/messages/m'), { uid: 'alice', body: 'hi' });
+  });
+  const alice = env.authenticatedContext('alice').firestore(),
+    carol = env.authenticatedContext('carol').firestore();
+  await assertSucceeds(getDoc(doc(alice, 'conversations/c')));
+  await assertSucceeds(
+    getDocs(query(collection(alice, 'conversations/c/messages'), orderBy('createdAt', 'desc'))),
+  );
+  await assertFails(getDoc(doc(carol, 'conversations/c')));
+  await assertFails(getDoc(doc(carol, 'conversations/c/messages/m')));
+  await assertFails(
+    setDoc(doc(alice, 'conversations/c/messages/x'), { uid: 'alice', body: 'direct' }),
+  );
+  await assertFails(
+    updateDoc(doc(alice, 'conversations/c'), { memberIds: ['alice', 'bob', 'carol'] }),
+  );
+  await env.withSecurityRulesDisabled((ctx) =>
+    updateDoc(doc(ctx.firestore(), 'conversations/c'), { memberIds: ['bob'] }),
+  );
+  await assertFails(getDoc(doc(alice, 'conversations/c/messages/m')));
+});
+test('inbox rows are owner-read and the owner may only mark them read', async () => {
+  await env.withSecurityRulesDisabled((ctx) =>
+    setDoc(doc(ctx.firestore(), 'users/alice/conversations/c'), {
+      state: 'request',
+      unread: 3,
+      readAt: null,
+      memberIds: ['alice', 'bob'],
+    }),
+  );
+  const alice = env.authenticatedContext('alice').firestore(),
+    bob = env.authenticatedContext('bob').firestore(),
+    ref = doc(alice, 'users/alice/conversations/c');
+  await assertFails(getDoc(doc(bob, 'users/alice/conversations/c')));
+  await assertSucceeds(getDoc(ref));
+  await assertFails(updateDoc(ref, { unread: 1, readAt: serverTimestamp() }));
+  await assertFails(updateDoc(ref, { unread: 0, readAt: serverTimestamp(), state: 'inbox' }));
+  await assertSucceeds(updateDoc(ref, { unread: 0, readAt: serverTimestamp() }));
+  await assertFails(deleteDoc(ref));
+  await assertFails(
+    setDoc(doc(alice, 'users/alice/conversations/new'), { state: 'inbox', unread: 0 }),
   );
 });

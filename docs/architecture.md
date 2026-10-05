@@ -67,3 +67,7 @@ Release metadata, independent ratings/reviews, and favorites use separate server
 ## Catalog scaling update
 
 See [catalog-scaling.md](catalog-scaling.md) for the cursor/cache architecture, asynchronous search index, private provider snapshots, controlled Genius jobs, deployment stages and retention prerequisites. The historical full-catalog limitations described in older audit documents no longer describe the current client.
+
+## Messages
+
+Direct messages and groups are described in [messages.md](messages.md). Chat is the one place where a client reads another account's content directly from Firestore: members of `conversations/{id}` may listen to it and its `messages`, so chat is realtime. All writes still go through callables, and each account's inbox comes from one server-maintained `users/{uid}/conversations` listener in `InboxProvider`.
