@@ -1,0 +1,603 @@
+{
+  "reviewedAt": "2026-09-26",
+  "artists": [
+    {
+      "urn": "soundcloud:users:68815937",
+      "name": "10kDunkin",
+      "profileUrl": "https://soundcloud.com/10kdunk",
+      "scenes": ["plugg", "cloud rap"]
+    },
+    {
+      "urn": "soundcloud:users:617658795",
+      "name": "1oneam",
+      "profileUrl": "https://soundcloud.com/xx1oneam",
+      "scenes": ["plugg", "rage"],
+      "existingId": "artist_6025b55ad73c9f71aadee393"
+    },
+    {
+      "urn": "soundcloud:users:187390524",
+      "name": "2slimey",
+      "profileUrl": "https://soundcloud.com/2slimey4eva",
+      "scenes": ["plugg", "experimental"]
+    },
+    {
+      "urn": "soundcloud:users:8361963",
+      "name": "454",
+      "profileUrl": "https://soundcloud.com/454spike",
+      "scenes": ["cloud rap", "experimental"]
+    },
+    {
+      "urn": "soundcloud:users:458646894",
+      "name": "Acid Souljah",
+      "profileUrl": "https://soundcloud.com/acidsouljah",
+      "scenes": ["experimental"]
+    },
+    {
+      "urn": "soundcloud:users:1155991891",
+      "name": "Anycia",
+      "profileUrl": "https://soundcloud.com/anycia",
+      "scenes": ["plugg"]
+    },
+    {
+      "urn": "soundcloud:users:113833983",
+      "name": "Autumn!",
+      "profileUrl": "https://soundcloud.com/twinuzis",
+      "scenes": ["pluggnb", "plugg"],
+      "existingId": "artist_defae04158b9c17d7b4a5f7b"
+    },
+    {
+      "urn": "soundcloud:users:622208079",
+      "name": "Baby Smoove",
+      "profileUrl": "https://soundcloud.com/babysmoove22",
+      "scenes": ["Detroit", "cloud rap"]
+    },
+    {
+      "urn": "soundcloud:users:218843659",
+      "name": "Babyface Ray",
+      "profileUrl": "https://soundcloud.com/miababyfaceray",
+      "scenes": ["Detroit", "cloud rap"]
+    },
+    {
+      "urn": "soundcloud:users:1121302",
+      "name": "BabyTron",
+      "profileUrl": "https://soundcloud.com/babytron",
+      "scenes": ["Detroit", "sample drill"],
+      "existingId": "artist_2fc57c42d5e054ec0d54c863"
+    },
+    {
+      "urn": "soundcloud:users:178630530",
+      "name": "Babyxsosa",
+      "profileUrl": "https://soundcloud.com/babyxsosa",
+      "scenes": ["cloud rap", "experimental"],
+      "existingId": "artist_dc6093814f3b4d86a7f06d92"
+    },
+    {
+      "urn": "soundcloud:users:105029974",
+      "name": "Bear1boss",
+      "profileUrl": "https://soundcloud.com/bear1boss",
+      "scenes": ["experimental", "rage"]
+    },
+    {
+      "urn": "soundcloud:users:161915158",
+      "name": "Bktherula",
+      "profileUrl": "https://soundcloud.com/bktherula",
+      "scenes": ["experimental", "rage"]
+    },
+    {
+      "urn": "soundcloud:users:3147157",
+      "name": "Black Kray",
+      "profileUrl": "https://soundcloud.com/blackkray",
+      "scenes": ["cloud rap", "dark plugg"],
+      "existingId": "artist_6ddd0ed99e87ed2b2ce8b8ea"
+    },
+    {
+      "urn": "soundcloud:users:18059731",
+      "name": "Black Smurf",
+      "profileUrl": "https://soundcloud.com/blackksmurf",
+      "scenes": ["Memphis", "cloud rap"]
+    },
+    {
+      "urn": "soundcloud:users:76355215",
+      "name": "Bladee",
+      "profileUrl": "https://soundcloud.com/bladee1000",
+      "scenes": ["cloud rap", "experimental"]
+    },
+    {
+      "urn": "soundcloud:users:2152092",
+      "name": "BONES",
+      "profileUrl": "https://soundcloud.com/teamsesh",
+      "scenes": ["cloud rap", "dark plugg"],
+      "existingId": "artist_d6d31104d1be4c4d10489ef9"
+    },
+    {
+      "urn": "soundcloud:users:154582484",
+      "name": "BoofPaxkMooky",
+      "profileUrl": "https://soundcloud.com/boofpaxkmooky",
+      "scenes": ["plugg", "cloud rap"],
+      "existingId": "artist_d0f9005d5daa7964cd1bccb1"
+    },
+    {
+      "urn": "soundcloud:users:96005780",
+      "name": "brakence",
+      "profileUrl": "https://soundcloud.com/brakence",
+      "scenes": ["hyperpop", "experimental"],
+      "existingId": "artist_42232ffd431b5bf5dd51dc41"
+    },
+    {
+      "urn": "soundcloud:users:1336521894",
+      "name": "Bruiser Wolf",
+      "profileUrl": "https://soundcloud.com/bruiserwolf",
+      "scenes": ["Detroit"]
+    },
+    {
+      "urn": "soundcloud:users:48438838",
+      "name": "Cash Bently",
+      "profileUrl": "https://soundcloud.com/cashbently",
+      "scenes": ["pluggnb", "plugg"],
+      "existingId": "artist_05596eac0e82dfacbcd2561b"
+    },
+    {
+      "urn": "soundcloud:users:909010162",
+      "name": "che",
+      "profileUrl": "https://soundcloud.com/che",
+      "scenes": ["rage", "experimental"],
+      "existingId": "artist_250fccd5f5f76c7c866647d7"
+    },
+    {
+      "urn": "soundcloud:users:277650292",
+      "name": "Christ Dillinger",
+      "profileUrl": "https://soundcloud.com/christdillinger",
+      "scenes": ["experimental", "cloud rap"]
+    },
+    {
+      "urn": "soundcloud:users:4114945",
+      "name": "Chuuwee",
+      "profileUrl": "https://soundcloud.com/chuuweencr",
+      "scenes": ["experimental"]
+    },
+    {
+      "urn": "soundcloud:users:13798011",
+      "name": "Cold Hart",
+      "profileUrl": "https://soundcloud.com/coldhart",
+      "scenes": ["cloud rap"]
+    },
+    {
+      "urn": "soundcloud:users:222319405",
+      "name": "Corey Lingo",
+      "profileUrl": "https://soundcloud.com/coreylingo",
+      "scenes": ["pluggnb", "plugg"],
+      "existingId": "artist_73a85596a02a7b1b0d9c4f3f"
+    },
+    {
+      "urn": "soundcloud:users:200421143",
+      "name": "D Savage",
+      "profileUrl": "https://soundcloud.com/dsavage3900",
+      "scenes": ["plugg", "cloud rap"],
+      "existingId": "artist_12e9c2d1dd56b0f90066c223"
+    },
+    {
+      "urn": "soundcloud:users:112887764",
+      "name": "Da$H",
+      "profileUrl": "https://soundcloud.com/heirdash",
+      "scenes": ["cloud rap"]
+    },
+    {
+      "urn": "soundcloud:users:6506837",
+      "name": "Duwap Kaine",
+      "profileUrl": "https://soundcloud.com/tafkaine",
+      "scenes": ["plugg", "cloud rap"]
+    },
+    {
+      "urn": "soundcloud:users:337995992",
+      "name": "ericdoa",
+      "profileUrl": "https://soundcloud.com/ericdoa",
+      "scenes": ["hyperpop", "experimental"],
+      "existingId": "artist_a0533c14f3a0a19a6d7d0abc"
+    },
+    {
+      "urn": "soundcloud:users:139566765",
+      "name": "Evilgiane",
+      "profileUrl": "https://soundcloud.com/aloevine",
+      "scenes": ["experimental"]
+    },
+    {
+      "urn": "soundcloud:users:862263178",
+      "name": "fakemink",
+      "profileUrl": "https://soundcloud.com/fakemink",
+      "scenes": ["UK underground", "cloud rap"],
+      "existingId": "artist_e5a9de51dba6d6a3012f396c"
+    },
+    {
+      "urn": "soundcloud:users:520189734",
+      "name": "Fimiguerrero",
+      "profileUrl": "https://soundcloud.com/fimiguerrero",
+      "scenes": ["UK underground", "rage"],
+      "existingId": "artist_099dc76edab7976f4dbcfd4e"
+    },
+    {
+      "urn": "soundcloud:users:10277383",
+      "name": "Fly Anakin",
+      "profileUrl": "https://soundcloud.com/flyanakin",
+      "scenes": ["experimental"]
+    },
+    {
+      "urn": "soundcloud:users:807518155",
+      "name": "Glokk40Spaz",
+      "profileUrl": "https://soundcloud.com/user-97328661",
+      "scenes": ["dark plugg", "plugg"]
+    },
+    {
+      "urn": "soundcloud:users:216682228",
+      "name": "Hardrock",
+      "profileUrl": "https://soundcloud.com/hardrock4l",
+      "scenes": ["rage", "experimental"]
+    },
+    {
+      "urn": "soundcloud:users:91584989",
+      "name": "Hi-C",
+      "profileUrl": "https://soundcloud.com/ca-hed-cobraz",
+      "scenes": ["cloud rap", "dark plugg"]
+    },
+    {
+      "urn": "soundcloud:users:266075",
+      "name": "Horse Head",
+      "profileUrl": "https://soundcloud.com/horsehead1990",
+      "scenes": ["cloud rap"]
+    },
+    {
+      "urn": "soundcloud:users:55254934",
+      "name": "IDKJeffery",
+      "profileUrl": "https://soundcloud.com/idontknowjeffery",
+      "scenes": ["Memphis", "experimental"],
+      "existingId": "artist_1c5c7068648d3a161053be06"
+    },
+    {
+      "urn": "soundcloud:users:233537961",
+      "name": "Izaya Tiji",
+      "profileUrl": "https://soundcloud.com/izaya1",
+      "scenes": ["plugg", "experimental"]
+    },
+    {
+      "urn": "soundcloud:users:6407618",
+      "name": "Joeyy",
+      "profileUrl": "https://soundcloud.com/jxxyy",
+      "scenes": ["cloud rap", "experimental"]
+    },
+    {
+      "urn": "soundcloud:users:2912574",
+      "name": "JPEGMAFIA",
+      "profileUrl": "https://soundcloud.com/jpegmafia",
+      "scenes": ["experimental"]
+    },
+    {
+      "urn": "soundcloud:users:454734888",
+      "name": "KA$HDAMI",
+      "profileUrl": "https://soundcloud.com/kashdami",
+      "scenes": ["plugg", "rage"],
+      "existingId": "artist_ab92045909697374f7b64eb4"
+    },
+    {
+      "urn": "soundcloud:users:109904792",
+      "name": "Lancey Foux",
+      "profileUrl": "https://soundcloud.com/lancey-foux",
+      "scenes": ["UK underground", "rage"],
+      "existingId": "artist_62ebfd716bbcd9bac055f647"
+    },
+    {
+      "urn": "soundcloud:users:220933047",
+      "name": "Lazer Dim 700",
+      "profileUrl": "https://soundcloud.com/lazerdim700",
+      "scenes": ["plugg", "experimental"]
+    },
+    {
+      "urn": "soundcloud:users:179256009",
+      "name": "Lil Candy Paint",
+      "profileUrl": "https://soundcloud.com/lilcandypaint",
+      "scenes": ["plugg", "pluggnb"],
+      "existingId": "artist_6f78d6b6ece837dfbdcb6dd7"
+    },
+    {
+      "urn": "soundcloud:users:182422898",
+      "name": "Lil Shine",
+      "profileUrl": "https://soundcloud.com/ilovelilshine",
+      "scenes": ["pluggnb", "cloud rap"]
+    },
+    {
+      "urn": "soundcloud:users:61628112",
+      "name": "Lil Tracy",
+      "profileUrl": "https://soundcloud.com/tracy1k",
+      "scenes": ["cloud rap", "plugg"]
+    },
+    {
+      "urn": "soundcloud:users:11277068",
+      "name": "Lil Xelly",
+      "profileUrl": "https://soundcloud.com/lilxelly",
+      "scenes": ["plugg", "experimental"]
+    },
+    {
+      "urn": "soundcloud:users:5993221",
+      "name": "LUCKI",
+      "profileUrl": "https://soundcloud.com/boob7",
+      "scenes": ["cloud rap", "plugg"]
+    },
+    {
+      "urn": "soundcloud:users:59424669",
+      "name": "Lunchbox",
+      "profileUrl": "https://soundcloud.com/yunglunchbox",
+      "scenes": ["rage", "plugg"]
+    },
+    {
+      "urn": "soundcloud:users:141790801",
+      "name": "Marlon DuBois",
+      "profileUrl": "https://soundcloud.com/marlon-dubois",
+      "scenes": ["cloud rap", "experimental"]
+    },
+    {
+      "urn": "soundcloud:users:92825945",
+      "name": "Mavi",
+      "profileUrl": "https://soundcloud.com/mavi",
+      "scenes": ["experimental"]
+    },
+    {
+      "urn": "soundcloud:users:31827148",
+      "name": "Maxo Kream",
+      "profileUrl": "https://soundcloud.com/maxo-kream",
+      "scenes": ["cloud rap"]
+    },
+    {
+      "urn": "soundcloud:users:28301681",
+      "name": "Meat Computer",
+      "profileUrl": "https://soundcloud.com/meat-computer",
+      "scenes": ["hyperpop", "experimental"],
+      "existingId": "artist_48120e60a9808eeadc83f6be"
+    },
+    {
+      "urn": "soundcloud:users:332123116",
+      "name": "midwxst",
+      "profileUrl": "https://soundcloud.com/midwxst",
+      "scenes": ["hyperpop", "rage"],
+      "existingId": "artist_8dcc3e50533cce70ced5a8c9"
+    },
+    {
+      "urn": "soundcloud:users:17759345",
+      "name": "MIKE",
+      "profileUrl": "https://soundcloud.com/t6mikee",
+      "scenes": ["experimental"]
+    },
+    {
+      "urn": "soundcloud:users:181475926",
+      "name": "Navy Blue",
+      "profileUrl": "https://soundcloud.com/navybluethewaterbearer",
+      "scenes": ["experimental"]
+    },
+    {
+      "urn": "soundcloud:users:613481787",
+      "name": "Nettspend",
+      "profileUrl": "https://soundcloud.com/nettspend",
+      "scenes": ["jerk", "rage"]
+    },
+    {
+      "urn": "soundcloud:users:20913208",
+      "name": "Nolanberollin",
+      "profileUrl": "https://soundcloud.com/nolodolo",
+      "scenes": ["plugg", "experimental"]
+    },
+    {
+      "urn": "soundcloud:users:222077223",
+      "name": "OsamaSon",
+      "profileUrl": "https://soundcloud.com/osamason",
+      "scenes": ["rage", "dark plugg"],
+      "existingId": "artist_a035452044c5197584099424"
+    },
+    {
+      "urn": "soundcloud:users:23553007",
+      "name": "Pink Siifu",
+      "profileUrl": "https://soundcloud.com/siiifu",
+      "scenes": ["experimental"]
+    },
+    {
+      "urn": "soundcloud:users:108959542",
+      "name": "Pi’erre Bourne",
+      "profileUrl": "https://soundcloud.com/pierrebourne",
+      "scenes": ["plugg", "rage"],
+      "existingId": "artist_4d208ad2972441aeacb0e7ed"
+    },
+    {
+      "urn": "soundcloud:users:1565955087",
+      "name": "Playboi Carti",
+      "profileUrl": "https://soundcloud.com/sircartier",
+      "scenes": ["rage", "plugg"],
+      "existingId": "artist_7a674a97a2044a237e3bc3b0"
+    },
+    {
+      "urn": "soundcloud:users:79996663",
+      "name": "Pollari",
+      "profileUrl": "https://soundcloud.com/pollari",
+      "scenes": ["plugg", "cloud rap"],
+      "existingId": "artist_663c22deef0848cb1eac6258"
+    },
+    {
+      "urn": "soundcloud:users:45349335",
+      "name": "quinn",
+      "profileUrl": "https://soundcloud.com/quinn",
+      "scenes": ["hyperpop", "experimental"],
+      "existingId": "artist_c512ca0c5c1e71be19f33568"
+    },
+    {
+      "urn": "soundcloud:users:112887958",
+      "name": "Retch",
+      "profileUrl": "https://soundcloud.com/retch-2",
+      "scenes": ["cloud rap"]
+    },
+    {
+      "urn": "soundcloud:users:7629314",
+      "name": "Robb Bank$",
+      "profileUrl": "https://soundcloud.com/robbbanks",
+      "scenes": ["cloud rap"]
+    },
+    {
+      "urn": "soundcloud:users:623187219",
+      "name": "RX Papi",
+      "profileUrl": "https://soundcloud.com/rxpapi",
+      "scenes": ["sample drill", "experimental"]
+    },
+    {
+      "urn": "soundcloud:users:1292209167",
+      "name": "RXKNephew",
+      "profileUrl": "https://soundcloud.com/rxknephew-music",
+      "scenes": ["experimental", "sample drill"]
+    },
+    {
+      "urn": "soundcloud:users:153238957",
+      "name": "SahBabii",
+      "profileUrl": "https://soundcloud.com/sahbabii",
+      "scenes": ["plugg"]
+    },
+    {
+      "urn": "soundcloud:users:102094710",
+      "name": "Sematary",
+      "profileUrl": "https://soundcloud.com/semataryy",
+      "scenes": ["experimental", "dark plugg"]
+    },
+    {
+      "urn": "soundcloud:users:196748377",
+      "name": "skaiwater",
+      "profileUrl": "https://soundcloud.com/skaiwater",
+      "scenes": ["UK underground", "experimental"],
+      "existingId": "artist_35a0f547a39187279f58080c"
+    },
+    {
+      "urn": "soundcloud:users:219044001",
+      "name": "Slimesito",
+      "profileUrl": "https://soundcloud.com/slimesito",
+      "scenes": ["dark plugg", "plugg"],
+      "existingId": "artist_fa39f202ee68cc14255bc7bb"
+    },
+    {
+      "urn": "soundcloud:users:385783802",
+      "name": "Slump6s",
+      "profileUrl": "https://soundcloud.com/slump6s",
+      "scenes": ["rage", "hyperpop"],
+      "existingId": "artist_3e634c3a931fbb506e4e72d2"
+    },
+    {
+      "urn": "soundcloud:users:1079089078",
+      "name": "Smokedope2016",
+      "profileUrl": "https://soundcloud.com/smokedope2016",
+      "scenes": ["cloud rap"]
+    },
+    {
+      "urn": "soundcloud:users:1057345948",
+      "name": "Snow Strippers",
+      "profileUrl": "https://soundcloud.com/snowstrippers",
+      "scenes": ["hyperpop", "experimental"]
+    },
+    {
+      "urn": "soundcloud:users:317991064",
+      "name": "Summrs",
+      "profileUrl": "https://soundcloud.com/summrs",
+      "scenes": ["pluggnb", "plugg"],
+      "existingId": "artist_be6637b627c7c547bd18b9f4"
+    },
+    {
+      "urn": "soundcloud:users:123563990",
+      "name": "Thaiboy Digital",
+      "profileUrl": "https://soundcloud.com/thaiboy-digital",
+      "scenes": ["cloud rap", "plugg"],
+      "existingId": "artist_b16d8b5f5d8eed75908ed718"
+    },
+    {
+      "urn": "soundcloud:users:316532088",
+      "name": "Thouxanbanfauni",
+      "profileUrl": "https://soundcloud.com/faunifigueroa",
+      "scenes": ["plugg", "cloud rap"],
+      "existingId": "artist_a2ba7b1e71317853ee50be5d"
+    },
+    {
+      "urn": "soundcloud:users:19794194",
+      "name": "Tony Shhnow",
+      "profileUrl": "https://soundcloud.com/snowmanservin",
+      "scenes": ["plugg", "sample drill"],
+      "existingId": "artist_ce766a9cd057caf469ecfb75"
+    },
+    {
+      "urn": "soundcloud:users:2406814",
+      "name": "UnoTheActivist",
+      "profileUrl": "https://soundcloud.com/678uno",
+      "scenes": ["rage", "plugg"]
+    },
+    {
+      "urn": "soundcloud:users:835715233",
+      "name": "untiljapan",
+      "profileUrl": "https://soundcloud.com/untiljapan",
+      "scenes": ["rage", "cloud rap"],
+      "existingId": "artist_0235632038c9a298e4d95ccc"
+    },
+    {
+      "urn": "soundcloud:users:642998637",
+      "name": "Veeze",
+      "profileUrl": "https://soundcloud.com/7veeze",
+      "scenes": ["Detroit"]
+    },
+    {
+      "urn": "soundcloud:users:113855055",
+      "name": "Weiland",
+      "profileUrl": "https://soundcloud.com/weiland",
+      "scenes": ["pluggnb", "plugg"]
+    },
+    {
+      "urn": "soundcloud:users:11796020",
+      "name": "Wicca Phase Springs Eternal",
+      "profileUrl": "https://soundcloud.com/wiccaphasespringseternal",
+      "scenes": ["cloud rap"]
+    },
+    {
+      "urn": "soundcloud:users:62752671",
+      "name": "WiFiGawd",
+      "profileUrl": "https://soundcloud.com/wifigawd",
+      "scenes": ["cloud rap", "experimental"],
+      "existingId": "artist_d16b465b7e0257dbdc69d13a"
+    },
+    {
+      "urn": "soundcloud:users:24323685",
+      "name": "Wifisfuneral",
+      "profileUrl": "https://soundcloud.com/wifisfuneral",
+      "scenes": ["cloud rap", "Memphis"],
+      "existingId": "artist_f49bcd6c4391d8d3ef3a01d5"
+    },
+    {
+      "urn": "soundcloud:users:14175331",
+      "name": "Xavier Wulf",
+      "profileUrl": "https://soundcloud.com/xavierwulf",
+      "scenes": ["Memphis", "cloud rap"],
+      "existingId": "artist_7f3a342168c106e61a4088d6"
+    },
+    {
+      "urn": "soundcloud:users:598848267",
+      "name": "xaviersobased",
+      "profileUrl": "https://soundcloud.com/xaviersobased",
+      "scenes": ["jerk", "experimental"],
+      "existingId": "artist_3b8f47c2b3ab4bdb9cfb4fd8"
+    },
+    {
+      "urn": "soundcloud:users:150333995",
+      "name": "Yhapojj",
+      "profileUrl": "https://soundcloud.com/115666777",
+      "scenes": ["plugg", "experimental"]
+    },
+    {
+      "urn": "soundcloud:users:54351871",
+      "name": "Yung Bans",
+      "profileUrl": "https://soundcloud.com/yungbans",
+      "scenes": ["plugg", "cloud rap"],
+      "existingId": "artist_4b69a897b59474ce4a428ee4"
+    },
+    {
+      "urn": "soundcloud:users:24878713",
+      "name": "Yung Lean",
+      "profileUrl": "https://soundcloud.com/yung-lean-doer",
+      "scenes": ["cloud rap", "experimental"],
+      "existingId": "artist_a39ce0a21a3f80e016803577"
+    }
+  ]
+}

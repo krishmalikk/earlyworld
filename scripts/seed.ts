@@ -60,7 +60,6 @@ async function main() {
         geniusUrl: null,
         geniusCheckedAt: null,
         credits: null,
-        embedUrl: null,
       });
       return true;
     });
