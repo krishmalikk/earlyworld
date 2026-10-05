@@ -33,7 +33,7 @@ async function main() {
     const flags = JSON.parse(value || '{}');
     if (
       Object.keys(flags).some(
-        (k) => !['creation', 'publication', 'playback', 'uploads'].includes(k),
+        (k) => !['creation', 'publication', 'playback', 'uploads', 'messaging'].includes(k),
       ) ||
       Object.values(flags).some((v) => typeof v !== 'boolean')
     )
@@ -55,6 +55,7 @@ async function main() {
         publication: !!d.publication,
         playback: !!d.playback,
         uploads: !!d.uploads,
+        messaging: !!d.messaging,
         supportEmail: d.supportEmail || null,
       }),
     );

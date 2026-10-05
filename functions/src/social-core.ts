@@ -58,6 +58,37 @@ export async function blocked(a: string, b: string) {
   );
   return docs.some((d) => d.exists);
 }
+export async function canView(viewer: string, author: string) {
+  if (await blocked(viewer, author)) return false;
+  const account = (await db.doc(`_socialAccounts/${author}`).get()).data();
+  return !account?.suspended && !account?.deleting;
+}
+const PUBLIC_PROFILE_KEYS = [
+  'username',
+  'bio',
+  'avatarUrl',
+  'saveCount',
+  'followerCount',
+  'ratingCount',
+  'reviewCount',
+  'releaseRatingCount',
+  'releaseReviewCount',
+  'favoriteTrackIds',
+  'favoriteReleaseIds',
+  'scenes',
+  'onboardingComplete',
+];
+/** The allowlisted public view of a profile; private and pending fields never leave the server. */
+export async function publicProfile(id: string, p: DocumentData) {
+  const avatar = p.avatarMediaId ? await mediaDTO(p.avatarMediaId, false) : null;
+  return {
+    id,
+    ...Object.fromEntries(
+      PUBLIC_PROFILE_KEYS.filter((k) => p[k] !== undefined).map((k) => [k, p[k]]),
+    ),
+    ...(avatar?.url ? { avatarUrl: avatar.url } : {}),
+  };
+}
 export async function visiblePost(uid: string, id: string) {
   const d = await db.doc(`posts/${socialId(id)}`).get();
   const p = d.data();

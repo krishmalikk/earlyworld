@@ -68,3 +68,14 @@ export {
   reserveCommunityUsername,
 } from './social-account';
 export * from './social-reads';
+export {
+  openConversation,
+  sendMessage,
+  respondToRequest,
+  leaveConversation,
+  removeConversationMember,
+  addConversationMembers,
+  renameConversation,
+  searchUsers,
+  removeReportedMessage,
+} from './messages';

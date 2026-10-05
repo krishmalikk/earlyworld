@@ -128,6 +128,28 @@ export async function deleteAccountBatch(uid: string) {
     const activity = await db.collection('activity').where('actorUid', '==', uid).limit(25).get();
     for (const d of activity.docs) await d.ref.delete();
     if (!activity.empty) return;
+    const messages = await db.collectionGroup('messages').where('uid', '==', uid).limit(25).get();
+    for (const d of messages.docs) await d.ref.delete();
+    if (!messages.empty) return;
+    // Leave every conversation so remaining members' inbox rows stop listing this account.
+    const conversations = await db
+      .collection('conversations')
+      .where('memberIds', 'array-contains', uid)
+      .limit(25)
+      .get();
+    for (const d of conversations.docs)
+      await db.runTransaction(async (tx) => {
+        const c = (await tx.get(d.ref)).data();
+        if (!c?.memberIds.includes(uid)) return;
+        const memberIds = (c.memberIds as string[]).filter((m) => m !== uid);
+        const rows = await tx.getAll(
+          ...memberIds.map((m) => db.doc(`users/${m}/conversations/${d.id}`)),
+        );
+        const createdBy = c.createdBy === uid ? memberIds[0] || null : c.createdBy;
+        tx.update(d.ref, { memberIds, createdBy });
+        rows.forEach((row) => row.exists && tx.update(row.ref, { memberIds, createdBy }));
+      });
+    if (!conversations.empty) return;
     await ref.update({
       stage: stage + 1,
       settleAfter: Timestamp.fromMillis(Date.now() + 10 * 60000),

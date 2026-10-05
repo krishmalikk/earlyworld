@@ -60,6 +60,23 @@ service cloud.firestore {
     match /users/{uid}/socialState/{id} { allow read: if owner(uid); allow write: if false; }
     match /users/{uid}/blockedUsers/{id} { allow read: if owner(uid); allow write: if false; }
     match /users/{uid}/blockedBy/{id} { allow read: if owner(uid); allow write: if false; }
+    // Inbox rows are server-maintained; the owner may only mark a conversation read.
+    match /users/{uid}/conversations/{cid} {
+      allow read: if owner(uid);
+      allow update: if owner(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['unread','readAt'])
+        && request.resource.data.unread == 0 && request.resource.data.readAt == request.time;
+      allow create, delete: if false;
+    }
+    // Realtime chat is the one cross-account direct read: current members only. Writes go through callables.
+    match /conversations/{cid} {
+      allow read: if signed() && request.auth.uid in resource.data.memberIds;
+      allow write: if false;
+      match /messages/{mid} {
+        allow read: if signed() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(cid)).data.memberIds;
+        allow write: if false;
+      }
+    }
 
     match /usernames/{name} {
       allow read: if signed();

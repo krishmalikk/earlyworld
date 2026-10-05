@@ -1,22 +1,17 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import { FieldPath, type Query, type DocumentData } from 'firebase-admin/firestore';
+import { FieldPath, Timestamp, type Query, type DocumentData } from 'firebase-admin/firestore';
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { db, FieldValue, hash, rateLimit } from './core';
 import {
-  blocked,
+  canView,
   followedPage,
   makeCursor,
-  mediaDTO,
+  publicProfile,
   readCursor,
   socialContext,
   socialId,
 } from './social-core';
 
-async function canView(viewer: string, author: string) {
-  if (await blocked(viewer, author)) return false;
-  const account = (await db.doc(`_socialAccounts/${author}`).get()).data();
-  return !account?.suspended && !account?.deleting;
-}
 function serialize(p: DocumentData) {
   return Object.fromEntries(
     Object.entries(p)
@@ -68,33 +63,65 @@ export const readCommunity = onCall(async (r) => {
     if (!author) throw new HttpsError('invalid-argument', 'Choose a profile.');
     const d = await db.doc(`users/${author}`).get();
     if (!d.exists) throw new HttpsError('not-found', 'Profile unavailable.');
-    const p = d.data()!;
-    const avatar = p.avatarMediaId ? await mediaDTO(p.avatarMediaId, false) : null;
-    const keys = [
-      'username',
-      'bio',
-      'avatarUrl',
-      'saveCount',
-      'followerCount',
-      'ratingCount',
-      'reviewCount',
-      'releaseRatingCount',
-      'releaseReviewCount',
-      'favoriteTrackIds',
-      'favoriteReleaseIds',
-      'scenes',
-      'onboardingComplete',
-    ];
-    return {
-      items: [
-        {
-          id: d.id,
-          ...Object.fromEntries(keys.filter((k) => p[k] !== undefined).map((k) => [k, p[k]])),
-          ...(avatar?.url ? { avatarUrl: avatar.url } : {}),
-        },
-      ],
-      cursor: null,
-    };
+    return { items: [await publicProfile(d.id, d.data()!)], cursor: null };
+  }
+  if (kind === 'profiles') {
+    // Batched identities for inbox and member lists; unavailable listeners are omitted.
+    const ids = r.data?.uids;
+    if (!Array.isArray(ids) || ids.length > 30)
+      throw new HttpsError('invalid-argument', 'Choose up to 30 profiles.');
+    const unique = [...new Set(ids.map(socialId))];
+    const docs = unique.length ? await db.getAll(...unique.map((id) => db.doc(`users/${id}`))) : [];
+    const items = [];
+    for (const d of docs)
+      if (d.exists && d.data()!.onboardingComplete && (await canView(uid, d.id)))
+        items.push(await publicProfile(d.id, d.data()!));
+    return { items, cursor: null };
+  }
+  if (kind === 'followers' || kind === 'followingUsers') {
+    // Owner-only relationship lists used to start conversations.
+    let q: Query =
+      kind === 'followers'
+        ? db
+            .collectionGroup('following')
+            .where('targetId', '==', uid)
+            .where('targetType', '==', 'user')
+        : db.collection(`users/${uid}/following`).where('targetType', '==', 'user');
+    q = q.orderBy('followedAt', 'desc');
+    if (r.data?.cursor != null) {
+      if (typeof r.data.cursor !== 'string' || !/^\d{1,16}$/.test(r.data.cursor))
+        throw new HttpsError('invalid-argument', 'Invalid cursor.');
+      q = q.startAfter(Timestamp.fromMillis(Number(r.data.cursor)));
+    }
+    const page = await q.limit(25).get();
+    const ids = page.docs.map((d) => (kind === 'followers' ? d.ref.parent.parent!.id : d.id));
+    const users = ids.length ? await db.getAll(...ids.map((id) => db.doc(`users/${id}`))) : [];
+    const items = [];
+    for (const d of users)
+      if (d.exists && d.data()!.onboardingComplete && (await canView(uid, d.id)))
+        items.push(await publicProfile(d.id, d.data()!));
+    const last = page.docs.at(-1)?.data().followedAt;
+    return { items, cursor: page.size === 25 && last ? String(last.toMillis()) : null };
+  }
+  if (kind === 'suggestedListeners') {
+    // Cold-start suggestions: listeners sharing a scene whom the viewer doesn't already follow.
+    const me = (await db.doc(`users/${uid}`).get()).data();
+    const scenes: string[] = (me?.scenes || []).slice(0, 10);
+    if (!scenes.length) return { items: [], cursor: null };
+    const [candidates, following] = await Promise.all([
+      db.collection('users').where('scenes', 'array-contains-any', scenes).limit(60).get(),
+      db.collection(`users/${uid}/following`).where('targetType', '==', 'user').get(),
+    ]);
+    const followed = new Set(following.docs.map((d) => d.id));
+    const items = [];
+    for (const d of candidates.docs) {
+      const p = d.data();
+      if (d.id === uid || followed.has(d.id) || !p.onboardingComplete || !p.username) continue;
+      if (!(await canView(uid, d.id))) continue;
+      items.push(await publicProfile(d.id, p));
+      if (items.length === 10) break;
+    }
+    return { items, cursor: null };
   }
   let q: Query,
     field = 'createdAt';

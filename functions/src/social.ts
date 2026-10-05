@@ -8,6 +8,7 @@ import {
   normalizePost,
   assertSubmittable,
 } from '../../shared/social';
+import { dmId } from '../../shared/messages';
 import {
   assertAdmin,
   bad,
@@ -30,6 +31,7 @@ export const getSocialStatus = onCall(async (r) => {
   const c = await socialContext(r);
   return {
     creation: c.admin || c.flags.creation === true,
+    messaging: c.admin || c.flags.messaging === true,
     publication: c.flags.publication === true,
     playback: c.flags.playback === true,
     admin: c.admin,
@@ -475,11 +477,22 @@ export const reportSocialContent = onCall(async (r) => {
   const { uid } = await socialContext(r);
   const kind = r.data?.kind,
     id = socialId(r.data?.id);
-  if (!['post', 'comment', 'profile', 'rating', 'releaseRating', 'trackComment'].includes(kind))
+  if (
+    !['post', 'comment', 'profile', 'rating', 'releaseRating', 'trackComment', 'message'].includes(
+      kind,
+    )
+  )
     throw new HttpsError('invalid-argument', 'Invalid report target.');
   const reason = requiredText(r.data?.reason, 'reason', 500);
   await rateLimit(uid, 'report', 20);
-  const target = await reportTarget(kind, id, r.data?.trackId);
+  const conversationId = kind === 'message' ? socialId(r.data?.conversationId) : null;
+  // Only a participant can report a private message, and only that message is shared.
+  if (
+    conversationId &&
+    !(await db.doc(`conversations/${conversationId}`).get()).data()?.memberIds?.includes(uid)
+  )
+    throw new HttpsError('not-found', 'Content unavailable.');
+  const target = await reportTarget(kind, id, r.data?.trackId || conversationId);
   if (!target.uid) throw new HttpsError('not-found', 'Content unavailable.');
   await db.doc(`_socialReports/${hash(`${uid}:${kind}:${id}`)}`).set({
     uid,
@@ -487,6 +500,7 @@ export const reportSocialContent = onCall(async (r) => {
     kind,
     targetId: id,
     trackId: r.data?.trackId ? socialId(r.data.trackId) : null,
+    ...(conversationId ? { conversationId } : {}),
     reason,
     status: 'open',
     createdAt: FieldValue.serverTimestamp(),
@@ -499,7 +513,8 @@ export const setUserBlock = onCall(async (r) => {
   if (target === uid || typeof r.data?.blocked !== 'boolean')
     throw new HttpsError('invalid-argument', 'Invalid block.');
   const batch = db.batch(),
-    ref = db.doc(`_socialBlocks/${hash(`${uid}:${target}`)}`);
+    ref = db.doc(`_socialBlocks/${hash(`${uid}:${target}`)}`),
+    dm = await db.doc(`users/${uid}/conversations/${dmId(uid, target)}`).get();
   if (r.data.blocked) {
     batch.set(ref, { uid, target, createdAt: FieldValue.serverTimestamp() });
     batch.set(db.doc(`users/${uid}/blockedUsers/${target}`), { target });
@@ -508,6 +523,8 @@ export const setUserBlock = onCall(async (r) => {
     batch.delete(db.doc(`users/${target}/following/${uid}`));
     batch.delete(db.doc(`users/${uid}/matches/${target}`));
     batch.delete(db.doc(`users/${target}/matches/${uid}`));
+    // Blocking hides the direct conversation; sending is refused by the block itself.
+    if (dm.exists) batch.update(dm.ref, { state: 'declined', unread: 0 });
   } else {
     batch.delete(ref);
     batch.delete(db.doc(`users/${uid}/blockedUsers/${target}`));
@@ -541,7 +558,7 @@ export const listModeration = onCall(async (r) => {
     snap.docs.map(async (d) => {
       const m = d.data();
       if (reports) {
-        const target = await reportTarget(m.kind, m.targetId, m.trackId);
+        const target = await reportTarget(m.kind, m.targetId, m.trackId || m.conversationId);
         return { id: d.id, ...m, subjectUid: target.uid, content: target.content };
       }
       let content: unknown = null;
@@ -739,14 +756,15 @@ export const completePostUpload = onCall(async (r) => {
   return { ok: true };
 });
 
-async function reportTarget(kind: string, id: string, trackId?: string) {
+async function reportTarget(kind: string, id: string, parentId?: string | null) {
   const paths: Record<string, string> = {
     post: `posts/${id}`,
     comment: `_postComments/${id}`,
     profile: `users/${id}`,
     rating: `ratings/${id}`,
     releaseRating: `releaseRatings/${id}`,
-    trackComment: `tracks/${trackId ? socialId(trackId) : 'missing'}/comments/${id}`,
+    trackComment: `tracks/${parentId ? socialId(parentId) : 'missing'}/comments/${id}`,
+    message: `conversations/${parentId ? socialId(parentId) : 'missing'}/messages/${id}`,
   };
   const d = await db.doc(paths[kind]).get();
   return {
