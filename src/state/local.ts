@@ -3,13 +3,13 @@ import { create } from 'zustand';
 export const useLocal = create<{
   uid: string | null;
   authReady: boolean;
-  playingTrackId: string | null;
+  pendingPostId: string | null;
+  setPendingPostId: (id:string|null)=>void;
   setAuth: (uid: string | null) => void;
-  setPlaying: (id: string | null) => void;
 }>((set) => ({
   uid: null,
   authReady: false,
-  playingTrackId: null,
-  setAuth: (uid) => set({ uid, authReady: true, playingTrackId: null }),
-  setPlaying: (playingTrackId) => set({ playingTrackId }),
+  pendingPostId: null,
+  setPendingPostId: pendingPostId=>set({pendingPostId}),
+  setAuth: (uid) => set({ uid, authReady: true }),
 }));

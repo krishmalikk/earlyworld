@@ -1,4 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import * as FileSystem from 'expo-file-system/legacy';
+import { newPostId } from '../src/data/post-drafts';
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -16,14 +18,15 @@ import {
 import { signOut } from '@react-native-firebase/auth';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { ref as storageRef, putFile, getDownloadURL } from '@react-native-firebase/storage';
+import { ref as storageRef, putFile } from '@react-native-firebase/storage';
 import { useSession } from '../src/data/session';
-import { useCatalog } from '../src/data/catalog';
+import { useCatalogPage } from '../src/data/catalog';
 import { useCollection } from '../src/data/listeners';
+import { useSaves } from '../src/data/saves';
 import { useLocal } from '../src/state/local';
 import { auth, call, db, errorMessage, storage } from '../src/lib/firebase';
 import { reserveUsername } from '../src/data/actions';
-import type { Follow, Save } from '../src/data/types';
+import type { Follow } from '../src/data/types';
 import { SCENES } from '../shared/domain';
 import {
   Artwork,
@@ -38,11 +41,9 @@ import {
 } from '../src/components/ui';
 import { EntityCard } from '../src/components/EntityCard';
 import { TrackRow } from '../src/components/TrackRow';
-import { Player } from '../src/components/Player';
 export default function Onboarding() {
   const { user, loading } = useSession(),
-    uid = useLocal((s) => s.uid),
-    catalog = useCatalog();
+    uid = useLocal((s) => s.uid);
   const step = user?.onboardingStep || 1;
   const [name, setName] = useState(''),
     [availability, setAvailability] = useState(''),
@@ -50,18 +51,16 @@ export default function Onboarding() {
     [avatar, setAvatar] = useState<string | null>(null),
     [scenes, setScenes] = useState<string[]>([]),
     [artists, setArtists] = useState<string[]>([]),
-    [preview, setPreview] = useState<string | null>(null),
     [error, setError] = useState<string | null>(null),
     [busy, setBusy] = useState(false);
-  const saveRef = useMemo(() => (uid ? collection(db, 'users', uid, 'saves') : null), [uid]),
-    followRef = useMemo(
-      () =>
-        uid
-          ? query(collection(db, 'users', uid, 'following'), where('targetType', '==', 'artist'))
-          : null,
-      [uid],
-    );
-  const saves = useCollection<Save>(saveRef),
+  const followRef = useMemo(
+    () =>
+      uid
+        ? query(collection(db, 'users', uid, 'following'), where('targetType', '==', 'artist'))
+        : null,
+    [uid],
+  );
+  const saves = useSaves(),
     follows = useCollection<Follow>(followRef);
   useEffect(() => {
     if (user) {
@@ -92,13 +91,13 @@ export default function Onboarding() {
       unsubscribe?.();
     };
   }, [name, uid]);
-  const eligible = catalog.artists
-    .filter((a) => (a.scenes || []).some((scene) => scenes.includes(scene)))
-    .sort((a, b) => (a.discoveryRank || 0) - (b.discoveryRank || 0));
-  const tracks = catalog.tracks
-    .filter((t) => artists.includes(t.artistId))
-    .sort((a, b) => a.saveCount - b.saveCount)
-    .slice(0, 30);
+  const artistPage = useCatalogPage('artists', { scenes, enabled: step === 4 });
+  const catalog = useCatalogPage('tracks', {
+    artistIds: artists,
+    enabled: step === 6 && artists.length > 0,
+  });
+  const eligible = artistPage.data;
+  const tracks = catalog.data;
   async function act(work: () => Promise<void>) {
     setError(null);
     setBusy(true);
@@ -132,7 +131,7 @@ export default function Onboarding() {
   if (!user)
     return (
       <SafeAreaView style={[s.page, s.body]}>
-        <Heading eyebrow="ACCOUNT" title="Finish creating your profile." />
+        <Heading title="Create your profile" />
         <ErrorLine message={error} />
         <Button
           busy={busy}
@@ -165,7 +164,7 @@ export default function Onboarding() {
     <SafeAreaView style={s.page}>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.body}>
         <View style={s.between}>
-          <Text style={[s.text, { fontWeight: '800' }]}>earlyworld</Text>
+          <Text style={s.text}>Set up your profile</Text>
           <Text style={s.mono}>{Math.min(step + 1, 6)} / 06</Text>
         </View>
         <View style={{ height: 3, backgroundColor: c.line }}>
@@ -179,7 +178,7 @@ export default function Onboarding() {
         </View>
         {step === 1 ? (
           <>
-            <Heading eyebrow="02 / YOUR HANDLE" title="Make a name." />
+            <Heading title="Choose a username" />
             <Text style={s.muted}>Lowercase letters, numbers, underscore. 3–20 characters.</Text>
             <Field
               accessibilityLabel="Username"
@@ -208,8 +207,7 @@ export default function Onboarding() {
         ) : null}
         {step === 2 ? (
           <>
-            <Heading eyebrow="03 / THE DETAILS" title="Put a face to it." />
-            <Text style={s.muted}>Or stay low. Both work.</Text>
+            <Heading title="Photo and bio" />
             <Artwork uri={avatar || user.avatarUrl} name={user.username} size={90} />
             <Button quiet onPress={() => act(photo)}>
               Choose photo
@@ -226,13 +224,24 @@ export default function Onboarding() {
               busy={busy}
               onPress={() =>
                 act(async () => {
-                  let avatarUrl = user.avatarUrl;
+                  let photoMediaId: string | undefined;
                   if (avatar) {
-                    const ref = storageRef(storage, `avatars/${uid}`);
-                    await putFile(ref, avatar, { contentType: 'image/jpeg' });
-                    avatarUrl = await getDownloadURL(ref);
+                    const info = await FileSystem.getInfoAsync(avatar);
+                    if (!info.exists) throw Error('Choose your photo again.');
+                    photoMediaId = newPostId();
+                    const ticket = await call<{ path: string }>('authorizeProfilePhoto', {
+                      id: photoMediaId,
+                      bytes: info.size,
+                    });
+                    await putFile(storageRef(storage, ticket.path), avatar, {
+                      contentType: 'image/jpeg',
+                    });
                   }
-                  await advance(3, { bio, avatarUrl });
+                  await call('submitProfileText', {
+                    bio,
+                    ...(photoMediaId ? { photoMediaId } : {}),
+                  });
+                  await advance(3);
                 })
               }
             >
@@ -252,8 +261,8 @@ export default function Onboarding() {
         ) : null}
         {step === 3 ? (
           <>
-            <Heading eyebrow="04 / YOUR CORNER" title="Pick your scenes." />
-            <Text style={s.muted}>Choose at least two. Nothing outside them is locked.</Text>
+            <Heading title="Choose your scenes" />
+            <Text style={s.muted}>Choose at least two.</Text>
             <View style={s.grid}>
               {SCENES.map((scene) => (
                 <Chip
@@ -285,11 +294,11 @@ export default function Onboarding() {
         ) : null}
         {step === 4 ? (
           <>
-            <Heading eyebrow="05 / ALREADY LISTENING" title="Who are you already on?" />
-            <Text style={s.muted}>Follow five or more. Your Rotation builds as you listen.</Text>
+            <Heading title="Follow artists" />
+            <Text style={s.muted}>Follow at least five artists.</Text>
             {eligible.length < 5 ? (
               <Empty
-                title="The catalog is still filling up."
+                title="Not enough artists in these scenes."
                 detail="Choose additional scenes below to see more artists."
               />
             ) : null}
@@ -308,6 +317,12 @@ export default function Onboarding() {
                 />
               ))}
             </View>
+            <ErrorLine message={artistPage.error} />
+            {artistPage.hasMore ? (
+              <Button quiet busy={artistPage.loading} onPress={artistPage.loadMore}>
+                More artists
+              </Button>
+            ) : null}
             <Text style={s.mono}>Explore more scenes</Text>
             <View style={s.grid}>
               {SCENES.map((scene) => (
@@ -351,30 +366,18 @@ export default function Onboarding() {
         ) : null}
         {step >= 5 ? (
           <>
-            <Heading eyebrow="06 / FIRST CONNECTIONS" title="Save a few." />
-            <Text style={s.muted}>Save at least five. Rare overlap finds your people.</Text>
-            <Text style={[s.mono, { color: c.accent }]}>{saves.data.length} / 5 SAVED</Text>
-            {tracks.map((track, i) => (
-              <View key={track.id}>
-                <TrackRow track={track} index={i} />
-                <Text
-                  onPress={() => setPreview(preview === track.id ? null : track.id)}
-                  style={[s.link, { paddingVertical: 10 }]}
-                >
-                  {preview === track.id ? 'Close preview' : 'Preview ↗'}
-                </Text>
-                {preview === track.id ? <Player track={track} /> : null}
-              </View>
-            ))}
-            {!tracks.length ? (
-              <Empty
-                title="No tracks loaded."
-                detail="Check the catalog seed and your connection."
-              />
-            ) : null}
+            <Heading title="Save tracks" />
+            <Text style={s.muted}>Save at least five tracks to find matching listeners.</Text>
+            <Text style={[s.mono, { color: c.accent }]}>
+              {saves.confirmedCount} saved ·{' '}
+              {saves.confirmedCount >= 5
+                ? 'Ready to continue'
+                : `${5 - saves.confirmedCount} more to go`}
+            </Text>
             <Button
-              disabled={saves.data.length < 5}
+              disabled={saves.loading || !!saves.error || saves.confirmedCount < 5}
               busy={busy}
+              busyLabel="Finishing your profile…"
               onPress={() =>
                 act(async () => {
                   await call('completeOnboarding');
@@ -385,13 +388,21 @@ export default function Onboarding() {
             >
               Find my people
             </Button>
+            <ErrorLine message={error || saves.error} />
+            {tracks.map((track) => (
+              <TrackRow key={track.id} track={track} />
+            ))}
+            {catalog.hasMore ? (
+              <Button quiet busy={catalog.loading} onPress={catalog.loadMore}>
+                More tracks
+              </Button>
+            ) : null}
+            {!tracks.length ? (
+              <Empty title="No tracks loaded." detail="Check your connection and try again." />
+            ) : null}
           </>
         ) : null}
-        <ErrorLine message={error || catalog.error || saves.error} />
-        <View style={[s.panel, { marginTop: 10 }]}>
-          <Text style={s.mono}>ROTATION / NOT YET CERTIFIED</Text>
-          <Text style={s.text}>Your Rotation builds as you listen.</Text>
-        </View>
+        <ErrorLine message={step >= 5 ? catalog.error : error || catalog.error || saves.error} />
       </ScrollView>
     </SafeAreaView>
   );

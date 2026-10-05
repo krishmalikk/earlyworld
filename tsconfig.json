@@ -1,14 +1,20 @@
 {
   "extends": "expo/tsconfig.base",
-  "compilerOptions": { "strict": true, "paths": { "@/*": ["./src/*"] } },
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+  },
   "include": [
     "app/**/*.ts",
     "app/**/*.tsx",
     "src/**/*.ts",
     "src/**/*.tsx",
     "shared/**/*.ts",
-    "app.config.ts",
-    "expo-env.d.ts"
+    "app.config.ts"
   ],
   "exclude": ["functions", "tests", "scripts"]
 }

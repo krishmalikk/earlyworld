@@ -1,4 +1,4 @@
-import React from 'react';
+import { fontSize, fontWeight, lineHeight, radius, space } from '../../shared/theme';
 import { Pressable, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import type { Entity, Rotation } from '../data/types';
@@ -23,21 +23,21 @@ export function EntityCard({
         onPress ||
         (() => router.push({ pathname: '/entity/[id]', params: { id: entity.id, type } }))
       }
-      style={[s.panel, { width: '48%', borderColor: selected ? c.accent : c.line, gap: 9 }]}
+      style={[s.panel, { width: '48%', borderColor: selected ? c.accent : c.line, gap: space[9] }]}
     >
       <View style={s.between}>
-        <Artwork uri={entity.imageUrl} name={entity.name} size={42} />
-        <Text style={[s.mono, { fontSize: 8 }]}>
-          {selected ? '✓' : type === 'producer' ? 'PROD.' : 'ARTIST'}
-        </Text>
+        <View style={{ borderRadius: radius.pill, overflow: 'hidden' }}>
+          <Artwork uri={entity.imageUrl} name={entity.name} size={54} />
+        </View>
+        {selected ? <Text style={s.link}>✓</Text> : null}
       </View>
-      <Text numberOfLines={1} style={[s.text, { fontWeight: '600' }]}>
+      <Text numberOfLines={1} style={[s.text, { fontWeight: fontWeight.medium }]}>
         {entity.name}
       </Text>
       {rotation ? (
         <>
           <TierBadge tier={rotation.tier} />
-          <Text style={{ color: c.muted, fontSize: 9 }}>
+          <Text style={{ color: c.muted, fontSize: fontSize.smallCaption }}>
             since{' '}
             {rotation.firstEngagedAt
               ?.toDate()
@@ -45,7 +45,10 @@ export function EntityCard({
           </Text>
         </>
       ) : (
-        <Text numberOfLines={2} style={{ color: c.muted, fontSize: 10, lineHeight: 15 }}>
+        <Text
+          numberOfLines={2}
+          style={{ color: c.muted, fontSize: fontSize.caption, lineHeight: lineHeight.caption }}
+        >
           {entity.scenes?.join(' / ') || `${entity.trackCount} tracks`}
         </Text>
       )}

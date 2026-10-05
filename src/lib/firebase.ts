@@ -19,13 +19,17 @@ if (__DEV__ && host) {
   connectFunctionsEmulator(functions, host, 5001);
   connectStorageEmulator(storage, host, 9199);
 }
-export async function call<T = unknown>(name: string, data: unknown = {}): Promise<T> {
-  const response = await httpsCallable(functions, name)(data);
+export async function call<T = unknown>(
+  name: string,
+  data: unknown = {},
+  timeout?: number,
+): Promise<T> {
+  const response = await httpsCallable(functions, name, timeout ? { timeout } : undefined)(data);
   return response.data as T;
 }
 export function report(error: unknown) {
   if (!__DEV__)
-    recordError(getCrashlytics(), error instanceof Error ? error : new Error(String(error)));
+    recordError(getCrashlytics(), new Error((error instanceof Error ? error.message : String(error)).replace(/https?:\/\/[^\s]+/g, '[URL removed]')));
 }
 export function errorMessage(error: unknown) {
   report(error);
