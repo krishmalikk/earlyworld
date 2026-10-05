@@ -51,7 +51,9 @@ export const lineHeight = {
 } as const;
 export const fontWeight = { regular: '400', medium: '600', bold: '700', heavy: '800' } as const;
 export const fontFamily = {
-  mono: 'monospace',
+  // Bundled DM Mono; iOS has no font named 'monospace'.
+  mono: 'DMMono_400Regular',
+  monoMedium: 'DMMono_500Medium',
   display: 'Panchang-Medium',
   displayBold: 'Panchang-Bold',
   displayRegular: 'Panchang-Regular',
