@@ -3,10 +3,11 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signed() { return request.auth != null; }
     function owner(uid) { return signed() && request.auth.uid == uid; }
+    function activeAccount(uid) { return !exists(/databases/$(database)/documents/_socialAccounts/$(uid)) || (!get(/databases/$(database)/documents/_socialAccounts/$(uid)).data.get('suspended',false) && !get(/databases/$(database)/documents/_socialAccounts/$(uid)).data.get('deleting',false)); }
     function text(value, max) { return value is string && value.size() <= max; }
     function track(id) { return get(/databases/$(database)/documents/tracks/$(id)).data; }
     match /users/{uid} {
-      allow read: if signed();
+      allow read: if owner(uid);
       allow create: if owner(uid)
         && request.resource.data.keys().hasOnly(['username','usernameLower','avatarUrl','bio','createdAt','saveCount','followerCount','onboardingComplete','onboardingStep','scenes'])
         && request.resource.data.username == '' && request.resource.data.usernameLower == ''
@@ -16,7 +17,7 @@ service cloud.firestore {
         && request.resource.data.onboardingComplete == false && request.resource.data.onboardingStep == 1
         && request.resource.data.scenes == [];
       allow update: if owner(uid)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['username','usernameLower','avatarUrl','bio','onboardingStep','scenes'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['onboardingStep','scenes'])
         && text(request.resource.data.bio,160) && text(request.resource.data.avatarUrl,2048)
         && request.resource.data.scenes is list && request.resource.data.scenes.size() <= 12
         && request.resource.data.scenes.hasOnly(['plugg','pluggnb','rage','jerk','dark plugg','hyperpop','sample drill','Detroit','Memphis','experimental','cloud rap','UK underground'])
@@ -24,13 +25,12 @@ service cloud.firestore {
         && (request.resource.data.onboardingStep <= 5 || request.resource.data.onboardingStep == resource.data.onboardingStep)
         && request.resource.data.onboardingStep <= resource.data.onboardingStep + 1
         && (request.resource.data.onboardingStep < 4 || request.resource.data.scenes.size() >= 2)
-        && request.resource.data.username == request.resource.data.usernameLower
         && request.resource.data.usernameLower.matches('^[a-z0-9_]{3,20}$')
         && (resource.data.usernameLower == '' || request.resource.data.usernameLower == resource.data.usernameLower)
         && getAfter(/databases/$(database)/documents/usernames/$(request.resource.data.usernameLower)).data.uid == uid;
       match /saves/{trackId} {
-        allow read: if signed();
-        allow create: if owner(uid)
+        allow read: if owner(uid);
+        allow create: if owner(uid) && activeAccount(uid)
           && request.resource.data.keys().hasOnly(['trackId','savedAt','title','artistId','artistName','producerId','producerName','artworkUrl','saveCountAtSave'])
           && request.resource.data.trackId == trackId && request.resource.data.savedAt == request.time
           && request.resource.data.title == track(trackId).title
@@ -41,8 +41,10 @@ service cloud.firestore {
         allow delete: if owner(uid);
       }
       match /following/{target} {
-        allow read: if signed();
-        allow create: if owner(uid) && target != uid
+        allow read: if owner(uid);
+        allow create: if owner(uid) && activeAccount(uid) && activeAccount(target) && target != uid
+          && !exists(/databases/$(database)/documents/users/$(uid)/blockedUsers/$(target))
+          && !exists(/databases/$(database)/documents/users/$(uid)/blockedBy/$(target))
           && request.resource.data.keys().hasOnly(['targetId','targetType','followedAt'])
           && request.resource.data.targetId == target && request.resource.data.followedAt == request.time
           && ((request.resource.data.targetType == 'user' && exists(/databases/$(database)/documents/users/$(target)))
@@ -50,35 +52,38 @@ service cloud.firestore {
            || (request.resource.data.targetType == 'producer' && exists(/databases/$(database)/documents/producers/$(target))));
         allow delete: if owner(uid);
       }
-      match /rotation/{id} { allow read: if signed(); allow write: if false; }
+      match /rotation/{id} { allow read: if owner(uid); allow write: if false; }
       match /matches/{id} { allow read: if owner(uid); allow write: if false; }
       match /engagementStats/{id} { allow read: if owner(uid); allow write: if false; }
     }
-    match /{path=**}/rotation/{id} { allow read: if signed(); }
+    match /socialState/{id} { allow read: if signed(); allow write: if false; }
+    match /users/{uid}/socialState/{id} { allow read: if owner(uid); allow write: if false; }
+    match /users/{uid}/blockedUsers/{id} { allow read: if owner(uid); allow write: if false; }
+    match /users/{uid}/blockedBy/{id} { allow read: if owner(uid); allow write: if false; }
+
     match /usernames/{name} {
       allow read: if signed();
-      allow create: if signed() && name.matches('^[a-z0-9_]{3,20}$')
-        && !exists(/databases/$(database)/documents/usernames/$(name))
-        && request.resource.data.keys().hasOnly(['uid','createdAt'])
-        && request.resource.data.uid == request.auth.uid && request.resource.data.createdAt == request.time
-        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.usernameLower == name;
+      allow create: if false;
       allow update, delete: if false;
     }
     // Creation goes through addTrack: URL reservation and server-owned fields must be atomic.
     match /tracks/{id} {
       allow read: if true; allow write: if false;
       match /comments/{commentId} {
-        allow read: if signed();
-        allow create: if signed() && exists(/databases/$(database)/documents/tracks/$(id))
-          && request.resource.data.keys().hasOnly(['uid','body','createdAt'])
-          && request.resource.data.uid == request.auth.uid && text(request.resource.data.body,1000)
-          && request.resource.data.body.size() > 0 && request.resource.data.createdAt == request.time;
+        allow read: if signed() && resource.data.uid == request.auth.uid;
+        allow create: if false;
         allow delete: if signed() && resource.data.uid == request.auth.uid;
       }
     }
     match /artists/{id} { allow read: if true; allow write: if false; }
-    match /producers/{id} { allow read: if true; allow write: if false; }
-    match /activity/{id} { allow read: if signed(); allow write: if false; }
+    match /producers/{id} {
+      allow read: if true; allow write: if false;
+      match /productions/{songId} { allow read: if signed(); allow write: if false; }
+    }
+    match /releases/{id} { allow read: if signed(); allow write: if false; }
+    match /releaseRatings/{id} { allow read: if signed() && resource.data.uid == request.auth.uid; allow write: if false; }
+    match /ratings/{id} { allow read: if signed() && resource.data.uid == request.auth.uid; allow write: if false; }
+    match /activity/{id} { allow read: if false; allow write: if false; }
     match /{document=**} { allow read, write: if false; }
   }
 }

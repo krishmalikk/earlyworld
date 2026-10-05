@@ -36,7 +36,6 @@ export const onSave = onDocumentWritten(
           trackId,
           data,
           'save',
-          0,
           `save:${uid}:${trackId}:${save.createTime!.toMillis()}`,
           save.data()!.savedAt.toDate(),
         );

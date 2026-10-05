@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { db, tracksFor, FieldValue, authUid, Timestamp } from './core';
+import { blocked } from './social-core';
 import { matchScores, type MatchTrack } from '../../shared/domain';
 /** Coalesce overlapping requests; a pending fifth-save refresh must never be lost. */
 export async function computeMatchesFor(uid: string) {
@@ -26,12 +27,19 @@ export async function computeMatchesFor(uid: string) {
         uid,
         tracks.map((t) => ({ id: t.id, ...t.data() }) as MatchTrack),
       );
+      const visibleResults: typeof results = [];
+      for (const result of results)
+        if (
+          !(await blocked(uid, result.uid)) &&
+          !(await db.doc(`_socialAccounts/${result.uid}`).get()).data()?.suspended
+        )
+          visibleResults.push(result);
       const old = await db.collection(`users/${uid}/matches`).get();
       again = await db.runTransaction(async (tx) => {
         const current = await tx.get(lease);
         if (current.data()?.token !== token) return false;
         old.docs.forEach((d) => tx.delete(d.ref));
-        results.forEach(({ uid: matchUid, ...data }) =>
+        visibleResults.forEach(({ uid: matchUid, ...data }) =>
           tx.set(db.doc(`users/${uid}/matches/${matchUid}`), {
             ...data,
             computedAt: FieldValue.serverTimestamp(),

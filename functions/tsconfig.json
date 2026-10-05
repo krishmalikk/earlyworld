@@ -1,1 +1,16 @@
-{"compilerOptions":{"module":"commonjs","target":"ES2022","lib":["ES2022","DOM"],"outDir":"lib","rootDir":"..","strict":true,"esModuleInterop":true,"skipLibCheck":true,"sourceMap":true},"include":["src/**/*.ts","../shared/**/*.ts"]}
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "outDir": "lib",
+    "rootDir": "..",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+  },
+  "include": ["src/**/*.ts", "../shared/**/*.ts"]
+}

@@ -1,11 +1,21 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
+    match /social-staging/{uid}/{postId}/{mediaId} {
+      allow read: if false;
+      allow write: if request.auth != null && request.auth.uid == uid
+        && resource == null && request.resource != null
+        && firestore.get(/databases/(default)/documents/_socialMedia/$(mediaId)).data.uid == uid
+        && firestore.get(/databases/(default)/documents/_socialMedia/$(mediaId)).data.postId == postId
+        && firestore.get(/databases/(default)/documents/_socialMedia/$(mediaId)).data.status == 'authorized'
+        && firestore.get(/databases/(default)/documents/_socialMedia/$(mediaId)).data.expiresAt > request.time
+        && request.resource.size == firestore.get(/databases/(default)/documents/_socialMedia/$(mediaId)).data.bytes
+        && request.resource.contentType == firestore.get(/databases/(default)/documents/_socialMedia/$(mediaId)).data.mime
+        && firestore.get(/databases/(default)/documents/_socialControl/config).data.uploads == true;
+    }
     match /avatars/{uid} {
       allow read: if true;
-      allow write: if request.auth != null && request.auth.uid == uid
-        && request.resource.size < 2 * 1024 * 1024
-        && request.resource.contentType.matches('image/(jpeg|png|webp)');
+      allow write: if false;
     }
   }
 }
