@@ -1,0 +1,26 @@
+{
+  "soundcloud": {
+    "status": "pending",
+    "approvalReference": "",
+    "allowedFields": [],
+    "serverRetentionDays": null,
+    "deviceCacheRetentionDays": null,
+    "artworkCacheRetentionDays": null,
+    "searchIndexRetentionDays": null,
+    "artistProfilesPermitted": false,
+    "commercialUsePermitted": false,
+    "removalDeadlineHours": null
+  },
+  "genius": {
+    "status": "pending",
+    "approvalReference": "",
+    "allowedFields": [],
+    "serverRetentionDays": null,
+    "deviceCacheRetentionDays": null,
+    "artworkCacheRetentionDays": null,
+    "searchIndexRetentionDays": null,
+    "artistProfilesPermitted": false,
+    "commercialUsePermitted": false,
+    "removalDeadlineHours": null
+  }
+}

@@ -18,3 +18,11 @@ ui-debug.log
 .DS_Store
 functions/.secret.local
 functions/.env*
+.soundcloud-import/
+
+# Private local media fixtures and infrastructure build output
+services/media-worker/.local/
+infra/social/.generated/
+
+# Firebase CLI hosting deploy cache
+.firebase/
