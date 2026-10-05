@@ -12,6 +12,7 @@ type Item = {
   uid: string;
   targetId: string;
   subjectUid?: string;
+  conversationId?: string;
   reason?: string;
   content:
     | SocialPost
@@ -117,6 +118,20 @@ export default function Moderation() {
               >
                 Resolve report
               </Button>
+              {item.kind === 'message' && item.conversationId ? (
+                <Button
+                  quiet
+                  disabled={busy}
+                  onPress={() =>
+                    void act('removeReportedMessage', {
+                      cid: item.conversationId,
+                      id: item.targetId,
+                    })
+                  }
+                >
+                  Remove message
+                </Button>
+              ) : null}
               <Button
                 quiet
                 disabled={busy || !item.subjectUid}

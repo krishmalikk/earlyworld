@@ -5,6 +5,7 @@ import { doc } from '@react-native-firebase/firestore';
 import { useDocument } from '../../src/data/listeners';
 import { useCatalogIds } from '../../src/data/catalog';
 import { db } from '../../src/lib/firebase';
+import { useSocialStatus } from '../../src/data/social';
 import type { Release } from '../../src/data/types';
 import { Artwork, Button, Empty, ErrorLine, Page, s, Section } from '../../src/components/ui';
 import { RatingEditor } from '../../src/components/Ratings';
@@ -17,6 +18,7 @@ export default function ReleasePage() {
   const state = useDocument<Release>(ref);
   const catalog = useCatalogIds('tracks', state.data?.tracks.map((t) => t.trackId) || []);
   const release = state.data;
+  const messaging = useSocialStatus().data?.messaging === true;
   return (
     <Page>
       <Stack.Screen options={{ title: 'Release' }} />
@@ -48,9 +50,21 @@ export default function ReleasePage() {
               {release.releasedAt ? ` · ${release.releasedAt}` : ''} · {release.tracks.length}{' '}
               tracks
             </Text>
-            <Button quiet onPress={() => Linking.openURL(release.sourceUrl)}>
-              SoundCloud ↗
-            </Button>
+            <View style={s.row}>
+              <Button quiet onPress={() => Linking.openURL(release.sourceUrl)}>
+                SoundCloud ↗
+              </Button>
+              {messaging ? (
+                <Button
+                  quiet
+                  onPress={() =>
+                    router.push({ pathname: '/messages/new', params: { releaseId: release.id } })
+                  }
+                >
+                  Send to a friend
+                </Button>
+              ) : null}
+            </View>
           </View>
           <RatingEditor key={release.id} track={release} kind="release" />
           <Section title="Tracklist">

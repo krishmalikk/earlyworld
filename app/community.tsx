@@ -22,6 +22,7 @@ function CommunityContent() {
     reportKind?: string;
     reportId?: string;
     trackId?: string;
+    conversationId?: string;
   }>();
   const [reason, setReason] = useState('');
   const action = useSettingsAction(),
@@ -50,6 +51,7 @@ function CommunityContent() {
                     kind: params.reportKind,
                     id: params.reportId,
                     trackId: params.trackId,
+                    conversationId: params.conversationId,
                     reason,
                   }),
                 'Report submitted for review.',

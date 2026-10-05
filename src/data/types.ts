@@ -136,3 +136,28 @@ export type Release = {
   ratingHalfStarSum?: number;
 };
 export type ReleaseRating = Omit<Rating, 'trackId'> & { releaseId: string };
+export type LastMessage = { senderId: string; preview: string; at: Stamp } | null;
+/** Server-maintained inbox row at users/{uid}/conversations/{id}. */
+export type InboxRow = {
+  id: string;
+  type: 'dm' | 'group';
+  state: 'inbox' | 'request' | 'declined';
+  memberIds: string[];
+  name: string | null;
+  createdBy: string | null;
+  lastMessage: LastMessage;
+  lastMessageAt: Stamp;
+  unread: number;
+  readAt: Stamp | null;
+};
+export type Conversation = Omit<InboxRow, 'state' | 'unread' | 'readAt'>;
+export type ChatMessage = {
+  id: string;
+  uid: string;
+  kind: 'text' | 'track' | 'release';
+  body: string;
+  trackId: string | null;
+  releaseId: string | null;
+  createdAt: Stamp | null;
+  removed?: boolean;
+};

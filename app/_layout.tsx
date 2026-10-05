@@ -14,6 +14,7 @@ import { useLocal } from '../src/state/local';
 import { c, s } from '../src/components/ui';
 import { report } from '../src/lib/firebase';
 import { SocialProvider } from '../src/data/social';
+import { InboxProvider } from '../src/data/inbox';
 import { startupRedirect } from '../shared/startup';
 export { ErrorBoundary } from 'expo-router';
 function Navigation() {
@@ -72,6 +73,11 @@ function Navigation() {
       <Stack.Screen name="entity/[id]" options={{ title: 'Artist & producer' }} />
       <Stack.Screen name="user/ratings/[id]" options={{ title: 'Ratings & reviews' }} />
       <Stack.Screen name="user/[id]" options={{ title: 'Profile' }} />
+      <Stack.Screen name="matches" options={{ title: 'Matches' }} />
+      <Stack.Screen name="messages/new" options={{ title: 'New message' }} />
+      <Stack.Screen name="messages/requests" options={{ title: 'Message requests' }} />
+      <Stack.Screen name="messages/[id]" options={{ title: '' }} />
+      <Stack.Screen name="messages/info/[id]" options={{ title: 'Details' }} />
     </Stack>
   );
 }
@@ -99,7 +105,9 @@ export default function Layout() {
           <SavesProvider>
             <RatingsProvider>
               <SocialProvider>
-                <Navigation />
+                <InboxProvider>
+                  <Navigation />
+                </InboxProvider>
               </SocialProvider>
             </RatingsProvider>
           </SavesProvider>

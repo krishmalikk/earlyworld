@@ -18,6 +18,7 @@ export type SocialStatus = {
   creation: boolean;
   publication: boolean;
   playback: boolean;
+  messaging: boolean;
   admin: boolean;
   eligible: boolean;
   supportEmail: string;

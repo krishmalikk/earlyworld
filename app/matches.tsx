@@ -1,20 +1,21 @@
-import { fontSize, radius, space } from '../../shared/theme';
+import { fontSize, radius, space } from '../shared/theme';
 import { useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { collection, orderBy, query } from '@react-native-firebase/firestore';
-import { useCollection } from '../../src/data/listeners';
-import { useLocal } from '../../src/state/local';
-import { db, call, errorMessage } from '../../src/lib/firebase';
-import { useSession } from '../../src/data/session';
-import { useCatalogIds } from '../../src/data/catalog';
-import type { Match } from '../../src/data/types';
-import { Artwork, Button, c, Empty, ErrorLine, Heading, Page, s } from '../../src/components/ui';
-import { UserLine } from '../../src/components/UserLine';
+import { call, errorMessage } from '../src/lib/firebase';
+import { useSession } from '../src/data/session';
+import { useCatalogIds } from '../src/data/catalog';
+import { useMatches } from '../src/data/inbox';
+import { openConversation } from '../src/data/messages';
+import { useSocialStatus } from '../src/data/social';
+import { Artwork, Button, c, Empty, ErrorLine, Heading, Page, s } from '../src/components/ui';
+import { UserLine } from '../src/components/UserLine';
+import { SmallButton } from '../src/components/Messages';
 export default function Matches() {
-  const uid = useLocal((s) => s.uid);
   const { user, loading: profileLoading } = useSession();
-  const [busy, setBusy] = useState(false);
+  const messaging = useSocialStatus().data?.messaging === true;
+  const [busy, setBusy] = useState(false),
+    [opening, setOpening] = useState<string | null>(null);
   const [requestError, setRequestError] = useState<string | null>(null);
   async function findMatches() {
     setBusy(true);
@@ -27,11 +28,18 @@ export default function Matches() {
       setBusy(false);
     }
   }
-  const ref = useMemo(
-    () => (uid ? query(collection(db, 'users', uid, 'matches'), orderBy('score', 'desc')) : null),
-    [uid],
-  );
-  const { data, loading, error } = useCollection<Match>(ref, true);
+  async function message(id: string) {
+    setOpening(id);
+    setRequestError(null);
+    try {
+      router.push(`/messages/${await openConversation([id])}`);
+    } catch (error) {
+      setRequestError(errorMessage(error));
+    } finally {
+      setOpening(null);
+    }
+  }
+  const { data, loading, error } = useMatches();
   const trackIds = useMemo(
     () => data.flatMap((match) => match.sharedTracks.map((track) => track.trackId)),
     [data],
@@ -52,29 +60,39 @@ export default function Matches() {
           ) : undefined
         }
       />
+      <Text style={s.muted}>
+        Listeners who saved the same rare tracks as you, ranked by how few others found them.
+      </Text>
       <ErrorLine message={error || requestError} />
       {loading || profileLoading ? (
         <Empty title="Loading connections…" />
       ) : data.length ? (
         data.map((match) => (
           <View key={match.id} style={s.panel}>
-            <UserLine
-              uid={match.id}
-              detail={`${match.sharedTracks.length} shared track${
-                match.sharedTracks.length === 1 ? '' : 's'
-              }`}
-            />
+            <View style={s.between}>
+              <View style={{ flex: 1 }}>
+                <UserLine
+                  uid={match.id}
+                  detail={`${match.sharedTracks.length} shared track${
+                    match.sharedTracks.length === 1 ? '' : 's'
+                  }`}
+                />
+              </View>
+              {messaging ? (
+                <SmallButton
+                  label={opening === match.id ? 'Opening…' : 'Message'}
+                  disabled={!!opening}
+                  onPress={() => void message(match.id)}
+                />
+              ) : null}
+            </View>
             {match.sharedTracks.map((track) => (
-              <View
+              <Pressable
                 key={track.trackId}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: space[10],
-                  borderTopWidth: 1,
-                  borderColor: c.line,
-                  paddingTop: space[10],
-                }}
+                accessibilityRole="link"
+                accessibilityLabel={`${track.title} by ${track.artistName}`}
+                onPress={() => router.push(`/track/${track.trackId}`)}
+                style={styles.track}
               >
                 <View style={{ borderRadius: radius.medium, overflow: 'hidden' }}>
                   <Artwork
@@ -84,14 +102,14 @@ export default function Matches() {
                   />
                 </View>
                 <View style={{ flex: 1, gap: space[4] }}>
-                  <Text onPress={() => router.push(`/track/${track.trackId}`)} style={s.text}>
+                  <Text style={s.text}>
                     {track.title} <Text style={s.muted}>/ {track.artistName}</Text>
                   </Text>
                   <Text style={[s.link, { fontSize: fontSize.smallLabel }]}>
                     You both saved this · {track.saveCount} saves
                   </Text>
                 </View>
-              </View>
+              </Pressable>
             ))}
           </View>
         ))
@@ -130,4 +148,13 @@ const styles = StyleSheet.create({
     paddingVertical: space[6],
   },
   countText: { color: c.text, fontSize: fontSize.smallLabel },
+  track: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space[10],
+    borderTopWidth: 1,
+    borderColor: c.line,
+    paddingTop: space[10],
+    minHeight: 44,
+  },
 });

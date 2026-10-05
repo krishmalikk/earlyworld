@@ -1,4 +1,6 @@
 import { useCommunity } from '../../src/data/community';
+import { useSocialStatus } from '../../src/data/social';
+import { Ionicons } from '@expo/vector-icons';
 import { newPostId } from '../../src/data/post-drafts';
 import { fontSize, fontWeight, radius, space } from '../../shared/theme';
 import { useEffect, useMemo, useState } from 'react';
@@ -53,6 +55,7 @@ export default function TrackDetail() {
       status: string;
       reason?: string;
     }>({ kind: 'textSubmissions' }, 25);
+  const messaging = useSocialStatus().data?.messaging === true;
   useEffect(() => {
     if (
       uid &&
@@ -144,6 +147,19 @@ export default function TrackDetail() {
             {track.saveCount} {track.saveCount === 1 ? 'save' : 'saves'}
           </Text>
           <SaveButton track={track} onError={setError} />
+          {messaging ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Send to a friend"
+              hitSlop={8}
+              onPress={() =>
+                router.push({ pathname: '/messages/new', params: { trackId: track.id } })
+              }
+              style={{ padding: space[6] }}
+            >
+              <Ionicons name="paper-plane-outline" size={22} color={c.accent} />
+            </Pressable>
+          ) : null}
         </View>
       </View>
       <ErrorLine message={error} />

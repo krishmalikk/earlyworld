@@ -15,6 +15,8 @@ import { useCatalogIds } from '../data/catalog';
 import { call, db, errorMessage } from '../lib/firebase';
 import { useLocal } from '../state/local';
 import { follow } from '../data/actions';
+import { openConversation } from '../data/messages';
+import { useSocialStatus } from '../data/social';
 import type { Follow, Rotation, Save, User } from '../data/types';
 import { Artwork, Button, Empty, ErrorLine, Field, c, Page, s, Section } from './ui';
 import { EntityCard } from './EntityCard';
@@ -24,7 +26,9 @@ export function Profile({ uid }: { uid: string }) {
     own = uid === currentUid;
   const [error, setError] = useState<string | null>(null),
     [editing, setEditing] = useState(false),
-    [bio, setBio] = useState('');
+    [bio, setBio] = useState(''),
+    [opening, setOpening] = useState(false);
+  const messaging = useSocialStatus().data?.messaging === true;
   const refs = useMemo(
     () => ({
       user: doc(db, 'users', uid),
@@ -138,11 +142,7 @@ export function Profile({ uid }: { uid: string }) {
           ).map(([label, count], index) => (
             <View key={label}>
               {index > 0 ? <View style={styles.statDivider} /> : null}
-              <View
-                accessible
-                accessibilityLabel={`${count} ${label}`}
-                style={styles.statRow}
-              >
+              <View accessible accessibilityLabel={`${count} ${label}`} style={styles.statRow}>
                 <Text style={s.muted}>{label}</Text>
                 <Text style={styles.number}>{count.toLocaleString()}</Text>
               </View>
@@ -189,7 +189,7 @@ export function Profile({ uid }: { uid: string }) {
             ) : null}
           </View>
         ) : currentUid ? (
-          <View style={{ alignSelf: 'stretch' }}>
+          <View style={{ alignSelf: 'stretch', gap: space[10] }}>
             <Button
               onPress={async () => {
                 try {
@@ -201,6 +201,25 @@ export function Profile({ uid }: { uid: string }) {
             >
               {following.data ? 'Following · unfollow' : 'Follow listener'}
             </Button>
+            {messaging && user.data ? (
+              <Button
+                quiet
+                busy={opening}
+                busyLabel="Opening…"
+                onPress={async () => {
+                  setOpening(true);
+                  try {
+                    router.push(`/messages/${await openConversation([uid])}`);
+                  } catch (e) {
+                    setError(errorMessage(e));
+                  } finally {
+                    setOpening(false);
+                  }
+                }}
+              >
+                Message
+              </Button>
+            ) : null}
           </View>
         ) : null}
       </View>

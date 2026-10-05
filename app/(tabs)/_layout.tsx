@@ -3,8 +3,11 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomInsetHandledContext, c } from '../../src/components/ui';
+import { useInbox } from '../../src/data/inbox';
 export default function TabLayout() {
-  const insets = useSafeAreaInsets();
+  const insets = useSafeAreaInsets(),
+    { unread, requests } = useInbox();
+  const badge = unread + requests.length;
   return (
     <BottomInsetHandledContext.Provider value={true}>
       <Tabs
@@ -34,7 +37,7 @@ export default function TabLayout() {
             { name: 'index', title: 'Feed', icon: 'albums-outline' },
             { name: 'discover', title: 'Discover', icon: 'search-outline' },
             { name: 'create', title: 'Create', icon: 'add-circle-outline' },
-            { name: 'matches', title: 'Matches', icon: 'git-compare-outline' },
+            { name: 'inbox', title: 'Inbox', icon: 'chatbubbles-outline' },
             { name: 'profile', title: 'Profile', icon: 'person-outline' },
           ] as const
         ).map((t) => (
@@ -52,6 +55,12 @@ export default function TabLayout() {
                       fontWeight: fontWeight.regular,
                       letterSpacing: tracking.brand,
                     },
+                  }
+                : {}),
+              ...(t.name === 'inbox' && badge
+                ? {
+                    tabBarBadge: badge > 9 ? '9+' : badge,
+                    tabBarBadgeStyle: { backgroundColor: c.accent, color: c.bg },
                   }
                 : {}),
               tabBarIcon: ({ color, size }) => (

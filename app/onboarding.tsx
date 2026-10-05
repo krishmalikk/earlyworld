@@ -382,7 +382,7 @@ export default function Onboarding() {
                 act(async () => {
                   await call('completeOnboarding');
                   await call('computeMatches');
-                  router.replace('/(tabs)/matches');
+                  router.replace('/(tabs)/inbox');
                 })
               }
             >
