@@ -1,0 +1,14 @@
+{
+  "name": "earlyworld-media-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node index.mjs",
+    "test": "node --test *.test.mjs"
+  },
+  "dependencies": {
+    "@google-cloud/video-transcoder": "^5.1.1",
+    "firebase-admin": "^14.5.0",
+    "sharp": "^0.35.5"
+  }
+}
