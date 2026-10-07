@@ -168,6 +168,42 @@ Expect a download spike, and judge launch day by retention a week later, not by 
 4. **TikTok/Reels from the founder account:** "rare save of the week", rating clips, match stories.
 5. **Music blogs and newsletters,** once there's a story to tell, such as the first big party.
 
+### Video tools
+
+Short-form video is our main free channel (channels 1 and 4 above). These tools were found on GitHub on Oct 6, 2026 and haven't been installed or tested yet.
+
+**Remotion (recommended).** [Remotion](https://www.remotion.dev) renders video from React and TypeScript, which we already write. Videos can reuse our brand colors, fonts, cover art and share-card designs, and a weekly clip can be rendered from catalog data.
+
+Claude Code skills built on Remotion:
+
+| Skill                                                                                  | What it does                                                                                                                                                                            | Use for                             |
+| -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| [remotion-dev/skills](https://github.com/remotion-dev/skills)                          | Official skills from Remotion: create a project, write animations, preview, render. Install with `npx skills add remotion-dev/skills` ([docs](https://www.remotion.dev/docs/ai/skills)) | Start here                          |
+| [remotion-superpowers](https://github.com/dojocodinglabs/remotion-superpowers)         | Adds AI voiceovers, music, stock footage, TikTok-style captions, transitions and a review step                                                                                          | Faster editing once the basics work |
+| [tutorial-video-creator-skill](https://github.com/m0rg0t/tutorial-video-creator-skill) | Vertical 1080×1920 videos from a screen recording, with a round talking-head overlay and synced captions                                                                                | "How matching works" app demos      |
+| [claude-shorts](https://github.com/AgriciDaniel/claude-shorts)                         | Cuts long videos into shorts with word-by-word captions                                                                                                                                 | Clips from longer talks or vlogs    |
+| [Claude-Code-Video-Toolkit](https://github.com/wilwaldon/Claude-Code-Video-Toolkit)    | Collection of video skills and tools: Remotion, Manim, screen recording, FFmpeg                                                                                                         | Reference                           |
+
+**Generators that make a whole video from a topic.** Use sparingly: underground music fans tend to recognize generic AI videos, and the plan depends on posting real taste openly as the founder.
+
+| Tool                                                                              | What it does                                                                              |
+| --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| [ai-shorts-generator](https://github.com/bredward127/ai-shorts-generator)         | Topic → script, AI visuals or stock footage, voiceover and captions (Python)              |
+| [YumCut](https://github.com/IgorShadurin/app.yumcut.com)                          | Self-hosted prompt-to-vertical-video app with script, voice, captions and watermark       |
+| [short-video-maker](https://github.com/aaurelions/short-video-maker)              | Short vertical videos for TikTok, Shorts and Reels                                        |
+| [Creatomate skill](https://github.com/Sara-Saraireh/claude-code-skill-creatomate) | Claude Code skill for Creatomate, a paid hosted video API with TikTok and Reels templates |
+
+**First videos to make:**
+
+1. **Animated share cards:** the Orbit, Recap and Review designs as 5–10 second animations, ending on an invite link.
+2. **"Rare save of the week":** cover art, artist, how few people have saved it, and the founder's rating, rendered from catalog data.
+3. **App demos:** record the iOS Simulator with `xcrun simctl io booted recordVideo demo.mov`, then add captions and a vertical frame in Remotion.
+
+**Cautions:**
+
+- **Remotion's license** is free for individuals and very small companies; larger companies need a paid license. Check the current terms before relying on it.
+- **No track audio without permission.** The app doesn't play audio and the videos shouldn't either. Use TikTok's or Instagram's sound library, or get the artist's OK (which also gets us a cross-post).
+
 ## Metrics
 
 | Metric                                                           | Why                                                                                                                                 |
