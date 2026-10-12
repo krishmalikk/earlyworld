@@ -1,0 +1,19 @@
+/* Legacy site styles sit in their own layer between Tailwind's base and
+   utilities, so utility classes always win over them. */
+@layer theme, base, site, components, utilities;
+
+@import "tailwindcss";
+@import "./site.css" layer(site);
+
+/* earlyworld brand palette, exposed as shadcn-style tokens. */
+@theme {
+  --color-background: #050710;
+  --color-panel: #0c1425;
+  --color-border: #2b3652;
+  --color-foreground: #fafafc;
+  --color-muted-foreground: #9eabd3;
+  --color-faint: #7283b2;
+  --color-accent: #a9b3fc;
+
+  --font-display: "Panchang", system-ui, sans-serif;
+}

@@ -3,8 +3,8 @@
 /* Panchang (Fontshare) used as the display face for headings. Variable, 200-800. */
 @font-face {
   font-family: "Panchang";
-  src: url("assets/fonts/Panchang-Variable.woff2") format("woff2"),
-    url("assets/fonts/Panchang-Variable.woff") format("woff");
+  src: url("/fonts/Panchang-Variable.woff2") format("woff2"),
+    url("/fonts/Panchang-Variable.woff") format("woff");
   font-weight: 200 800;
   font-style: normal;
   font-display: swap;
@@ -99,8 +99,10 @@ img {
 .nav {
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 50;
   background: rgba(5, 7, 16, 0.9);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line);
 }
 .nav__inner {
@@ -125,7 +127,9 @@ img {
 .nav__links {
   display: flex;
   gap: 26px;
-  font-size: 0.95rem;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 500;
 }
 .nav__links a {
   color: var(--muted);
@@ -152,6 +156,11 @@ img {
   -webkit-mask-image: radial-gradient(130% 100% at 70% 35%, #000 35%, transparent 80%);
   mask-image: radial-gradient(130% 100% at 70% 35%, #000 35%, transparent 80%);
 }
+/* Behind the album corridor: centred on the corridor's axis. */
+.waves--hero {
+  -webkit-mask-image: radial-gradient(120% 70% at 50% 52%, #000 30%, transparent 75%);
+  mask-image: radial-gradient(120% 70% at 50% 52%, #000 30%, transparent 75%);
+}
 .hero__grid {
   position: relative;
   z-index: 1;
@@ -160,7 +169,7 @@ img {
   gap: 56px;
   align-items: center;
 }
-.hero h1 {
+.hero__text h2 {
   font-size: clamp(2.2rem, 5vw, 3.2rem);
   font-weight: 700;
 }
@@ -197,32 +206,6 @@ img {
   width: 24px;
   height: 24px;
   border-radius: 6px;
-}
-.live {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 0.66rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: var(--faint);
-}
-.live i {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--accent);
-  animation: pulse 1.8s ease-in-out infinite;
-}
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 0.35;
-  }
-  50% {
-    opacity: 1;
-  }
 }
 
 .chips {
@@ -402,10 +385,6 @@ img {
   .phone .prow {
     opacity: 1;
     transform: none;
-  }
-  .live i {
-    animation: none;
-    opacity: 1;
   }
 }
 
