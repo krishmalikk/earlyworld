@@ -5,7 +5,7 @@ import { useLocal } from '../state/local';
 import { call, errorMessage } from '../lib/firebase';
 import { useSocial } from './social';
 import { useForeground } from './listeners';
-function hydrate(value: unknown): unknown {
+export function hydrate(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(hydrate);
   if (value && typeof value === 'object') {
     if ('millis' in value && typeof value.millis === 'number')
