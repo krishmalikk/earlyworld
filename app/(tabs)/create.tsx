@@ -251,7 +251,7 @@ function Composer({ uid }: { uid: string }) {
   return (
     <Page>
       <View style={[s.panel, { gap: space[6] }]}>
-        <Heading title={draft.editing ? 'Edit your post' : 'What’s on your mind?'} />
+        <Heading display title={draft.editing ? 'Edit your post' : 'What’s on your mind?'} />
         <Text style={s.muted}>Share a find, a take, or a moment from your scene.</Text>
       </View>
       {!draft.mediaLocked ? (

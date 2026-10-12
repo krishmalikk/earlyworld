@@ -3,14 +3,16 @@ import { useMemo, useState } from 'react';
 import { FlatList, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { collection, doc, limit, orderBy, query } from '@react-native-firebase/firestore';
 import { router } from 'expo-router';
-import { fontSize, fontWeight, radius, space } from '../../shared/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { fontSize, fontWeight, lineHeight, radius, space, tracking } from '../../shared/theme';
 import { useLocal } from '../state/local';
 import { useCatalogPage } from '../data/catalog';
 import { useCollection, useDocument } from '../data/listeners';
 import { follow } from '../data/actions';
 import { call, db, errorMessage } from '../lib/firebase';
 import type { Entity, Follow, Production, Rotation, Track } from '../data/types';
-import { Artwork, Button, c, Chip, Empty, ErrorLine, Page, s, Section, TierBadge } from './ui';
+import { Artwork, Button, c, Empty, ErrorLine, s, Section, Segmented, TierBadge } from './ui';
 import { UserLine } from './UserLine';
 import { TrackRow } from './TrackRow';
 import { WaveBackground } from './AuthDecor';
@@ -18,7 +20,8 @@ import { WaveBackground } from './AuthDecor';
 type Row = { id: string; track: Track } | { id: string; production: Production };
 export function ProducerProfile({ id }: { id: string }) {
   const uid = useLocal((state) => state.uid);
-  const [mode, setMode] = useState('Genius credits'),
+  const insets = useSafeAreaInsets();
+  const [mode, setMode] = useState<Mode>('Genius credits'),
     [count, setCount] = useState(25);
   const [syncing, setSyncing] = useState(false),
     [followingBusy, setFollowingBusy] = useState(false),
@@ -80,52 +83,53 @@ export function ProducerProfile({ id }: { id: string }) {
       setError(errorMessage(e));
     }
   }
+  const name = entity.data?.name || 'Producer';
+  const genius = `${sync?.verifiedCount || 0}${sync && !sync.complete ? '+' : ''}`;
   return (
-    <Page scroll={false}>
+    <View style={s.page}>
       <WaveBackground veil={false} />
       <FlatList<Row>
         data={rows}
         keyExtractor={(row) => row.id}
-        contentContainerStyle={[s.body, { gap: space[12] }]}
+        contentContainerStyle={{ flexGrow: 1 }}
         initialNumToRender={12}
         windowSize={7}
         ListHeaderComponent={
-          <View style={{ gap: space[20], paddingBottom: space[8] }}>
-            <View style={styles.hero}>
+          <>
+            <View style={[styles.hero, { paddingTop: insets.top + space[8] }]}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Back"
+                onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+                style={({ pressed }) => [styles.back, { opacity: pressed ? 0.7 : 1 }]}
+              >
+                <Ionicons name="chevron-back" size={20} color={c.text} />
+              </Pressable>
               <View style={styles.avatar}>
-                <Artwork
-                  uri={entity.data?.imageUrl}
-                  name={entity.data?.name || 'Producer'}
-                  size={92}
-                />
+                <View style={styles.avatarInner}>
+                  <Artwork uri={entity.data?.imageUrl} name={name} size={AVATAR} />
+                </View>
               </View>
-              <Text style={s.mono}>Producer</Text>
-              <Text accessibilityRole="header" style={[s.title, { textAlign: 'center' }]}>
-                {entity.data?.name || 'Producer profile'}
-              </Text>
-              {entity.data?.biography ? (
-                <Text numberOfLines={3} style={[s.text, { textAlign: 'center' }]}>
-                  {entity.data.biography}
+              <View style={{ gap: space[8] }}>
+                <Text accessibilityRole="header" numberOfLines={2} style={styles.name}>
+                  {entity.data?.name || (entity.loading ? ' ' : 'Producer profile')}
                 </Text>
-              ) : null}
-              <TierBadge tier={mine.data?.tier || null} />
-              <View style={styles.stats}>
-                <View style={styles.stat}>
-                  <Text style={styles.number}>{entity.data?.trackCount || tracks.length}</Text>
-                  <Text style={s.muted}>In earlyworld</Text>
-                </View>
-                <View style={styles.stat}>
-                  <Text style={styles.number}>
-                    {sync?.verifiedCount || 0}
-                    {sync && !sync.complete ? '+' : ''}
-                  </Text>
-                  <Text style={s.muted}>Genius credits</Text>
-                </View>
+                <Text style={styles.meta}>
+                  Producer ·{' '}
+                  <Text style={styles.metaNumber}>
+                    {(entity.data?.trackCount || tracks.length).toLocaleString()}
+                  </Text>{' '}
+                  in earlyworld · <Text style={styles.metaNumber}>{genius}</Text> on Genius
+                </Text>
+                {mine.data?.tier ? <TierBadge tier={mine.data.tier} /> : null}
               </View>
-              <View style={{ alignSelf: 'stretch' }}>
-                <Button
-                  busy={followingBusy}
-                  disabled={!uid || following.loading || !!following.error || !entity.data}
+              <View style={styles.actions}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: !!following.data, busy: followingBusy }}
+                  disabled={
+                    !uid || followingBusy || following.loading || !!following.error || !entity.data
+                  }
                   onPress={async () => {
                     if (!uid || followingBusy) return;
                     setFollowingBusy(true);
@@ -138,126 +142,137 @@ export function ProducerProfile({ id }: { id: string }) {
                       setFollowingBusy(false);
                     }
                   }}
+                  style={({ pressed }) => [
+                    styles.pill,
+                    following.data ? styles.pillOutline : styles.pillFilled,
+                    { opacity: pressed || followingBusy ? 0.7 : 1 },
+                  ]}
                 >
-                  {following.data ? 'Following · unfollow' : 'Follow producer'}
-                </Button>
-              </View>
-              {entity.data?.geniusUrl ? (
-                <Pressable
-                  accessibilityRole="link"
-                  onPress={() => void open(entity.data!.geniusUrl!)}
-                  style={styles.link}
-                >
-                  <Text style={s.link}>Profile & biography on Genius ↗</Text>
+                  <Text style={[styles.pillText, { color: following.data ? c.text : c.bg }]}>
+                    {following.data ? 'Following' : 'Follow'}
+                  </Text>
                 </Pressable>
-              ) : null}
+                {entity.data?.geniusUrl ? (
+                  <Pressable
+                    accessibilityRole="link"
+                    accessibilityLabel="Profile and biography on Genius"
+                    onPress={() => void open(entity.data!.geniusUrl!)}
+                    style={({ pressed }) => [
+                      styles.pill,
+                      styles.pillOutline,
+                      { opacity: pressed ? 0.7 : 1 },
+                    ]}
+                  >
+                    <Text style={[styles.pillText, { color: c.accent }]}>Bio on Genius</Text>
+                    <Ionicons
+                      name="arrow-up-outline"
+                      size={14}
+                      color={c.accent}
+                      style={styles.northEast}
+                    />
+                  </Pressable>
+                ) : null}
+              </View>
             </View>
-            <View style={s.grid}>
-              {['Genius credits', 'In earlyworld'].map((label) => (
-                <Chip
-                  key={label}
-                  label={label}
-                  selected={mode === label}
-                  onPress={() => setMode(label)}
-                />
-              ))}
-            </View>
-            {mode === 'Genius credits' ? (
-              <View style={{ gap: space[8] }}>
-                <Text
-                  style={{ color: c.text, fontSize: fontSize.section, fontWeight: fontWeight.bold }}
-                >
-                  Produced by {entity.data?.name || 'this producer'}
+            <View style={styles.sheetTop}>
+              <Segmented subtle options={MODES} value={mode} onChange={setMode} />
+              <View style={s.between}>
+                <Text style={styles.sheetTitle} numberOfLines={1}>
+                  {mode === 'Genius credits' ? `Produced by ${name}` : `${name} in earlyworld`}
                 </Text>
-                <Text style={s.muted}>
-                  Production credits from Genius, including co-productions. Tracks outside
-                  earlyworld open on Genius.
-                </Text>
-                {sync?.updatedAt ? (
-                  <Text style={s.muted}>
-                    Updated {sync.updatedAt.toDate().toLocaleDateString()}
-                    {sync.complete ? ' · All available pages checked' : ' · More credits to check'}
+                {mode === 'Genius credits' && sync?.updatedAt ? (
+                  <Text style={styles.updated}>
+                    Updated{' '}
+                    {sync.updatedAt
+                      .toDate()
+                      .toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' })}
                   </Text>
                 ) : null}
               </View>
-            ) : (
-              <Text style={s.muted}>Catalog tracks, including shared production credits.</Text>
-            )}
-            <ErrorLine
-              message={
-                error || entity.error || productions.error || following.error || catalog.error
+              <ErrorLine
+                message={
+                  error || entity.error || productions.error || following.error || catalog.error
+                }
+              />
+            </View>
+          </>
+        }
+        renderItem={({ item }) => {
+          if ('track' in item)
+            return (
+              <View style={styles.sheetRow}>
+                <TrackRow track={item.track} />
+              </View>
+            );
+          const production = item.production,
+            track = byGenius.get(production.geniusId);
+          return (
+            <View style={styles.sheetRow}>
+              <Pressable
+                accessibilityRole={track ? 'button' : 'link'}
+                accessibilityLabel={`${production.title} by ${production.artistName}, ${track ? 'view track' : 'open on Genius'}`}
+                onPress={() =>
+                  track ? router.push(`/track/${track.id}`) : void open(production.geniusUrl)
+                }
+                style={({ pressed }) => [styles.credit, { opacity: pressed ? 0.7 : 1 }]}
+              >
+                <View style={styles.creditArt}>
+                  <Artwork uri={production.artworkUrl} name={production.title} size={56} />
+                </View>
+                <View style={{ flex: 1, gap: space[2] }}>
+                  <Text numberOfLines={2} style={styles.creditTitle}>
+                    {production.title}
+                  </Text>
+                  <Text numberOfLines={1} style={s.muted}>
+                    {production.artistName}
+                    {track ? ' · In earlyworld' : ''}
+                  </Text>
+                </View>
+                <Ionicons
+                  name={track ? 'chevron-forward' : 'arrow-up-outline'}
+                  size={18}
+                  color={c.muted}
+                  style={track ? undefined : styles.northEast}
+                />
+              </Pressable>
+            </View>
+          );
+        }}
+        ListEmptyComponent={
+          <View style={styles.sheetRow}>
+            <Empty
+              title={
+                productions.loading || entity.loading
+                  ? 'Loading producer…'
+                  : mode === 'Genius credits'
+                    ? 'No verified credits loaded yet.'
+                    : 'No catalog tracks yet.'
+              }
+              detail={
+                mode === 'Genius credits'
+                  ? 'Load credits below, or browse tracks already in earlyworld.'
+                  : undefined
               }
             />
           </View>
         }
-        renderItem={({ item }) => {
-          if ('track' in item) return <TrackRow track={item.track} />;
-          const production = item.production,
-            track = byGenius.get(production.geniusId);
-          return (
-            <Pressable
-              accessibilityRole={track ? 'button' : 'link'}
-              accessibilityLabel={`${production.title} by ${production.artistName}, ${track ? 'view track' : 'open on Genius'}`}
-              onPress={() =>
-                track ? router.push(`/track/${track.id}`) : void open(production.geniusUrl)
-              }
-              style={styles.credit}
-            >
-              <View style={{ borderRadius: radius.medium, overflow: 'hidden' }}>
-                <Artwork uri={production.artworkUrl} name={production.title} size={60} />
-              </View>
-              <View style={{ flex: 1, gap: space[5] }}>
-                <Text numberOfLines={2} style={[s.text, { fontWeight: fontWeight.bold }]}>
-                  {production.title}
-                </Text>
-                <Text numberOfLines={1} style={s.muted}>
-                  {production.artistName}
-                </Text>
-                <Text style={s.link}>
-                  {[production.releaseDate?.slice(0, 4), track ? 'In earlyworld' : 'Genius ↗']
-                    .filter(Boolean)
-                    .join(' · ')}
-                </Text>
-              </View>
-            </Pressable>
-          );
-        }}
-        ListEmptyComponent={
-          <Empty
-            title={
-              productions.loading || entity.loading
-                ? 'Loading producer…'
-                : mode === 'Genius credits'
-                  ? 'No verified credits loaded yet.'
-                  : 'No catalog tracks yet.'
-            }
-            detail={
-              mode === 'Genius credits'
-                ? 'Load credits below, or browse tracks already in earlyworld.'
-                : undefined
-            }
-          />
-        }
         ListFooterComponent={
-          <View style={{ gap: space[24] }}>
-            {mode === 'Genius credits' ? (
-              <View style={{ gap: space[12], paddingTop: space[12] }}>
-                {(sync?.verifiedCount || 0) > productions.data.length || !sync?.complete ? (
-                  <Button
-                    busy={syncing}
-                    busyLabel="Checking production credits…"
-                    disabled={!entity.data || productions.loading}
-                    onPress={() => {
-                      if ((sync?.verifiedCount || 0) > productions.data.length)
-                        setCount((value) => value + 25);
-                      else void loadCredits();
-                    }}
-                  >
-                    {productions.data.length ? 'Load more productions' : 'Load productions'}
-                  </Button>
-                ) : null}
-                <ErrorLine message={error} />
-              </View>
+          <View style={[styles.sheetFooter, { paddingBottom: insets.bottom + space[30] }]}>
+            {mode === 'Genius credits' &&
+            ((sync?.verifiedCount || 0) > productions.data.length || !sync?.complete) ? (
+              <Button
+                quiet
+                busy={syncing}
+                busyLabel="Checking production credits…"
+                disabled={!entity.data || productions.loading}
+                onPress={() => {
+                  if ((sync?.verifiedCount || 0) > productions.data.length)
+                    setCount((value) => value + 25);
+                  else void loadCredits();
+                }}
+              >
+                {productions.data.length ? 'Load more productions' : 'Load productions'}
+              </Button>
             ) : null}
             {mode === 'In earlyworld' && catalog.hasMore ? (
               <Button quiet busy={catalog.loading} onPress={catalog.loadMore}>
@@ -267,37 +282,95 @@ export function ProducerProfile({ id }: { id: string }) {
             <ProducerListeners id={id} />
           </View>
         }
+        ListFooterComponentStyle={{ flexGrow: 1 }}
       />
-    </Page>
+    </View>
   );
 }
+const MODES = [
+  { value: 'Genius credits', label: 'Genius credits' },
+  { value: 'In earlyworld', label: 'In earlyworld' },
+] as const;
+type Mode = (typeof MODES)[number]['value'];
+const AVATAR = 112;
 const styles = StyleSheet.create({
-  hero: {
-    alignItems: 'center',
+  hero: { paddingHorizontal: space[18], paddingBottom: space[28], gap: space[18] },
+  back: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
     backgroundColor: c.panel,
-    borderRadius: radius.card,
-    padding: space[20],
-    gap: space[14],
+    borderWidth: 1,
+    borderColor: c.line,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  avatar: { borderWidth: 2, borderColor: c.accent, borderRadius: radius.pill, overflow: 'hidden' },
-  stats: {
-    alignSelf: 'stretch',
-    flexDirection: 'row',
+  avatar: {
+    alignSelf: 'flex-start',
+    borderWidth: 3,
+    borderColor: c.accent,
+    borderRadius: radius.pill,
+    padding: space[3],
     backgroundColor: c.bg,
-    borderRadius: radius.large,
-    padding: space[14],
   },
-  stat: { flex: 1, alignItems: 'center', gap: space[4] },
-  number: { color: c.text, fontSize: fontSize.section, fontWeight: fontWeight.bold },
-  credit: {
+  avatarInner: { borderRadius: radius.pill, overflow: 'hidden' },
+  name: {
+    color: c.text,
+    fontSize: fontSize.brandHero,
+    fontWeight: fontWeight.heavy,
+    letterSpacing: tracking.title,
+  },
+  meta: { color: c.muted, fontSize: fontSize.body, lineHeight: lineHeight.content },
+  metaNumber: { color: c.text, fontWeight: fontWeight.bold },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: space[10] },
+  pill: {
+    minHeight: 44,
+    paddingHorizontal: space[22],
+    borderRadius: radius.pill,
+    borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space[12],
-    padding: space[12],
-    backgroundColor: c.panel,
-    borderRadius: radius.large,
+    justifyContent: 'center',
+    gap: space[6],
   },
-  link: { minHeight: 44, justifyContent: 'center' },
+  pillFilled: { backgroundColor: c.accent, borderColor: c.accent },
+  pillOutline: { backgroundColor: c.panel, borderColor: c.line },
+  pillText: { fontSize: fontSize.body, fontWeight: fontWeight.bold },
+  northEast: { transform: [{ rotate: '45deg' }] },
+  sheetTop: {
+    backgroundColor: c.panel,
+    borderTopLeftRadius: radius.card,
+    borderTopRightRadius: radius.card,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderColor: c.line,
+    paddingHorizontal: space[18],
+    paddingTop: space[18],
+    paddingBottom: space[10],
+    gap: space[18],
+  },
+  sheetTitle: {
+    flex: 1,
+    color: c.text,
+    fontSize: fontSize.section,
+    fontWeight: fontWeight.heavy,
+    letterSpacing: tracking.brand,
+  },
+  updated: { color: c.muted, fontSize: fontSize.label },
+  sheetRow: {
+    backgroundColor: c.panel,
+    paddingHorizontal: space[18],
+    paddingVertical: space[6],
+  },
+  sheetFooter: {
+    flexGrow: 1,
+    backgroundColor: c.panel,
+    paddingHorizontal: space[18],
+    paddingTop: space[18],
+    gap: space[24],
+  },
+  credit: { flexDirection: 'row', alignItems: 'center', gap: space[14], minHeight: 56 },
+  creditArt: { borderRadius: radius.large, overflow: 'hidden' },
+  creditTitle: { color: c.text, fontSize: fontSize.body, fontWeight: fontWeight.bold },
 });
 
 function ProducerListeners({ id }: { id: string }) {

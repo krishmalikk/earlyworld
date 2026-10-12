@@ -1,5 +1,5 @@
 import { useCommunity } from '../data/community';
-import { fontSize, fontWeight, radius, space } from '../../shared/theme';
+import { fontSize, fontWeight, lineHeight, radius, space, tracking } from '../../shared/theme';
 import { useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { collection, doc, limit, orderBy, query } from '@react-native-firebase/firestore';
@@ -7,6 +7,7 @@ import { router } from 'expo-router';
 import { useRatingList } from '../data/ratings';
 import { HighestRated } from './HighestRated';
 import { FavoriteTracks } from './FavoriteTracks';
+import { ProfilePosts } from './ProfilePosts';
 import { ReleaseReviews } from './Releases';
 import { RatingCard } from './Ratings';
 import { Ionicons } from '@expo/vector-icons';
@@ -55,27 +56,7 @@ export function Profile({ uid }: { uid: string }) {
   }>({ kind: 'textSubmissions' }, 25, own);
   const certified = rotation.data.filter((r) => r.tier);
   return (
-    <Page>
-      {own ? (
-        <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Share your profile"
-            onPress={() => router.push('/share')}
-            style={{ padding: space[12] }}
-          >
-            <Ionicons name="share-outline" size={24} color={c.text} />
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Settings"
-            onPress={() => router.push('/settings')}
-            style={{ padding: space[12] }}
-          >
-            <Ionicons name="settings-outline" size={24} color={c.text} />
-          </Pressable>
-        </View>
-      ) : null}
+    <Page gap={space[30]}>
       <ErrorLine message={user.error} />
       {!own && user.data ? (
         <View style={s.row}>
@@ -116,97 +97,129 @@ export function Profile({ uid }: { uid: string }) {
         </View>
       ) : null}
       <View style={styles.hero}>
-        <View style={styles.avatar}>
-          <Artwork uri={user.data?.avatarUrl} name={user.data?.username || 'ew'} size={88} />
-        </View>
-        <View style={{ gap: space[8], alignSelf: 'stretch' }}>
-          <Text style={s.title}>
-            {user.data ? `@${user.data.username || 'listener'}` : 'Profile'}
-          </Text>
-          {user.data?.bio ? <Text style={s.text}>{user.data.bio}</Text> : null}
-        </View>
-        {user.data?.scenes?.length ? (
-          <View style={[s.grid, { alignSelf: 'stretch' }]}>
-            {user.data.scenes.map((scene) => (
-              <View key={scene} style={styles.scene}>
-                <Text style={s.link}>{scene}</Text>
+        <View style={styles.banner} />
+        <View style={styles.heroBody}>
+          <View style={styles.heroTop}>
+            <View style={styles.avatar}>
+              <View style={styles.avatarInner}>
+                <Artwork
+                  uri={user.data?.avatarUrl}
+                  name={user.data?.username || 'ew'}
+                  size={AVATAR}
+                />
+              </View>
+            </View>
+            {own ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={editing ? 'Cancel bio edit' : 'Edit bio'}
+                onPress={() => {
+                  setEditing(!editing);
+                  setBio(user.data?.bio || '');
+                }}
+                style={({ pressed }) => [styles.editButton, { opacity: pressed ? 0.7 : 1 }]}
+              >
+                <Ionicons name={editing ? 'close' : 'pencil-outline'} size={18} color={c.text} />
+              </Pressable>
+            ) : currentUid ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ selected: !!following.data }}
+                onPress={async () => {
+                  try {
+                    await follow(currentUid, uid, 'user', !!following.data);
+                  } catch (e) {
+                    setError(errorMessage(e));
+                  }
+                }}
+                style={({ pressed }) => [
+                  styles.followButton,
+                  following.data ? styles.following : null,
+                  { opacity: pressed ? 0.7 : 1 },
+                ]}
+              >
+                <Text style={[styles.followText, following.data && { color: c.text }]}>
+                  {following.data ? 'Following' : 'Follow'}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+          <View style={{ gap: space[4] }}>
+            <Text style={[s.title, s.displayHeading]}>
+              {user.data ? `@${user.data.username || 'listener'}` : 'Profile'}
+            </Text>
+            {user.data?.bio ? <Text style={styles.bio}>{user.data.bio}</Text> : null}
+          </View>
+          <View style={styles.statLine}>
+            {(
+              [
+                ['follower', 'followers', user.data?.followerCount || 0],
+                ['save', 'saved', user.data?.saveCount || 0],
+                [
+                  'rating',
+                  'ratings',
+                  (user.data?.ratingCount || 0) + (user.data?.releaseRatingCount || 0),
+                ],
+                [
+                  'review',
+                  'reviews',
+                  (user.data?.reviewCount || 0) + (user.data?.releaseReviewCount || 0),
+                ],
+              ] as [string, string, number][]
+            ).map(([one, many, count], index) => (
+              <View key={many} style={styles.statItem}>
+                {index > 0 ? <Text style={styles.statDot}>·</Text> : null}
+                <Text
+                  accessibilityLabel={`${count} ${count === 1 ? one : many}`}
+                  style={styles.statLabel}
+                >
+                  <Text style={styles.statNumber}>{count.toLocaleString()}</Text>{' '}
+                  {count === 1 ? one : many}
+                </Text>
               </View>
             ))}
           </View>
-        ) : null}
-        <View style={styles.stats}>
-          <Text style={styles.statsTitle}>Profile stats</Text>
-          {(
-            [
-              ['Followers', user.data?.followerCount || 0],
-              ['Saved', user.data?.saveCount || 0],
-              ['Ratings', (user.data?.ratingCount || 0) + (user.data?.releaseRatingCount || 0)],
-              ['Reviews', (user.data?.reviewCount || 0) + (user.data?.releaseReviewCount || 0)],
-            ] as [string, number][]
-          ).map(([label, count], index) => (
-            <View key={label}>
-              {index > 0 ? <View style={styles.statDivider} /> : null}
-              <View accessible accessibilityLabel={`${count} ${label}`} style={styles.statRow}>
-                <Text style={s.muted}>{label}</Text>
-                <Text style={styles.number}>{count.toLocaleString()}</Text>
+          {user.data?.scenes?.length ? (
+            <View style={{ gap: space[10] }}>
+              <Text style={styles.eyebrow}>Sounds like</Text>
+              <View style={s.grid}>
+                {user.data.scenes.map((scene) => (
+                  <View key={scene} style={styles.scene}>
+                    <Text style={styles.sceneText}>{scene}</Text>
+                  </View>
+                ))}
               </View>
             </View>
-          ))}
+          ) : null}
+          {own && editing ? (
+            <View style={{ gap: space[12] }}>
+              <Field
+                accessibilityLabel="Profile bio"
+                multiline
+                maxLength={160}
+                value={bio}
+                onChangeText={setBio}
+                autoFocus
+              />
+              <Button
+                onPress={async () => {
+                  try {
+                    await call('submitProfileText', { bio });
+                    setEditing(false);
+                    Alert.alert(
+                      'Awaiting review',
+                      'Your current bio stays visible until the change is approved.',
+                    );
+                  } catch (e) {
+                    setError(errorMessage(e));
+                  }
+                }}
+              >
+                Submit bio for review
+              </Button>
+            </View>
+          ) : null}
         </View>
-        {own ? (
-          <View style={{ alignSelf: 'stretch', gap: space[12] }}>
-            <Button
-              quiet
-              onPress={() => {
-                setEditing(!editing);
-                setBio(user.data?.bio || '');
-              }}
-            >
-              {editing ? 'Cancel edit' : 'Edit bio'}
-            </Button>
-            {editing ? (
-              <>
-                <Field
-                  accessibilityLabel="Profile bio"
-                  multiline
-                  maxLength={160}
-                  value={bio}
-                  onChangeText={setBio}
-                />
-                <Button
-                  onPress={async () => {
-                    try {
-                      await call('submitProfileText', { bio });
-                      setEditing(false);
-                      Alert.alert(
-                        'Awaiting review',
-                        'Your current bio stays visible until the change is approved.',
-                      );
-                    } catch (e) {
-                      setError(errorMessage(e));
-                    }
-                  }}
-                >
-                  Submit bio for review
-                </Button>
-              </>
-            ) : null}
-          </View>
-        ) : currentUid ? (
-          <View style={{ alignSelf: 'stretch' }}>
-            <Button
-              onPress={async () => {
-                try {
-                  await follow(currentUid, uid, 'user', !!following.data);
-                } catch (e) {
-                  setError(errorMessage(e));
-                }
-              }}
-            >
-              {following.data ? 'Following · unfollow' : 'Follow listener'}
-            </Button>
-          </View>
-        ) : null}
       </View>
       <ErrorLine
         message={
@@ -224,57 +237,47 @@ export function Profile({ uid }: { uid: string }) {
         own={own}
         kind="release"
       />
-      <Section title="Posts & videos">
-        <View style={s.row}>
-          <Button
-            quiet
-            onPress={() =>
-              router.push({ pathname: '/posts', params: { mode: 'profile', uid, kind: 'post' } })
-            }
-          >
-            Posts
-          </Button>
-          <Button
-            quiet
-            onPress={() =>
-              router.push({ pathname: '/posts', params: { mode: 'profile', uid, kind: 'video' } })
-            }
-          >
-            Videos
-          </Button>
-        </View>
-        {own ? (
-          <>
-            <Button
-              quiet
-              onPress={() => router.push({ pathname: '/posts', params: { mode: 'own' } })}
-            >
-              Drafts & submissions
-            </Button>
-            <Button
-              quiet
-              onPress={() => router.push({ pathname: '/posts', params: { mode: 'bookmarks' } })}
-            >
-              Bookmarked posts
-            </Button>
-            {submissions.data
-              .filter((p) => p.status !== 'approved')
-              .map((p) => (
-                <View key={p.id} style={s.panel}>
-                  <Text style={s.text}>
-                    {p.kind === 'review'
-                      ? 'Review'
-                      : p.kind === 'profile'
-                        ? 'Profile update'
-                        : 'Comment'}{' '}
-                    · {p.status === 'pending' ? 'Awaiting review' : 'Not approved'}
-                  </Text>
-                  <Text style={s.muted}>{p.reason || p.body || p.fields?.bio}</Text>
-                </View>
-              ))}
-          </>
-        ) : null}
-      </Section>
+      <ProfilePosts key={`posts:${currentUid}:${uid}`} uid={uid} own={own} />
+      {own ? (
+        <Section title="Submissions & bookmarks">
+          <View style={[s.panel, { padding: space[0], gap: space[0] }]}>
+            {(
+              [
+                ['create-outline', 'Drafts & submissions', 'own'],
+                ['bookmark-outline', 'Bookmarked posts', 'bookmarks'],
+              ] as const
+            ).map(([icon, label, mode], index) => (
+              <View key={mode}>
+                {index > 0 ? <View style={styles.statDivider} /> : null}
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => router.push({ pathname: '/posts', params: { mode } })}
+                  style={({ pressed }) => [styles.linkRow, { opacity: pressed ? 0.7 : 1 }]}
+                >
+                  <Ionicons name={icon} size={20} color={c.accent} />
+                  <Text style={[s.text, { flex: 1 }]}>{label}</Text>
+                  <Ionicons name="chevron-forward" size={18} color={c.muted} />
+                </Pressable>
+              </View>
+            ))}
+          </View>
+          {submissions.data
+            .filter((p) => p.status !== 'approved')
+            .map((p) => (
+              <View key={p.id} style={s.panel}>
+                <Text style={s.text}>
+                  {p.kind === 'review'
+                    ? 'Review'
+                    : p.kind === 'profile'
+                      ? 'Profile update'
+                      : 'Comment'}{' '}
+                  · {p.status === 'pending' ? 'Awaiting review' : 'Not approved'}
+                </Text>
+                <Text style={s.muted}>{p.reason || p.body || p.fields?.bio}</Text>
+              </View>
+            ))}
+        </Section>
+      ) : null}
       <ReleaseReviews key={`release-reviews:${uid}`} uid={uid} preview />
       <Section title="Highest rated">
         <HighestRated ratings={highest.data} />
@@ -353,47 +356,80 @@ export function Profile({ uid }: { uid: string }) {
     </Page>
   );
 }
+const AVATAR = 80;
+const BANNER = 96;
+// Ring (3) + gap (4) on each side of the artwork.
+const AVATAR_OUTER = AVATAR + 14;
 const styles = StyleSheet.create({
-  hero: {
-    backgroundColor: c.panel,
-    borderRadius: radius.card,
-    padding: space[20],
-    gap: space[18],
-    alignItems: 'flex-start',
+  hero: { backgroundColor: c.panel, borderRadius: radius.card, overflow: 'hidden' },
+  banner: {
+    height: BANNER,
+    backgroundColor: c.banner,
+    borderBottomWidth: 2,
+    borderBottomColor: c.accent,
+  },
+  heroBody: { paddingHorizontal: space[20], paddingBottom: space[22], gap: space[14] },
+  heroTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    marginTop: -AVATAR_OUTER / 2,
   },
   avatar: {
     borderRadius: radius.pill,
     borderWidth: 3,
     borderColor: c.accent,
     padding: space[4],
-    overflow: 'hidden',
-    backgroundColor: c.selected,
+    backgroundColor: c.panel,
   },
-  stats: {
-    alignSelf: 'stretch',
-    backgroundColor: c.bg,
-    borderRadius: radius.large,
-    paddingHorizontal: space[16],
-    paddingVertical: space[14],
+  avatarInner: { borderRadius: radius.pill, overflow: 'hidden' },
+  editButton: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: c.line,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  statsTitle: {
+  followButton: {
+    minHeight: 40,
+    paddingHorizontal: space[18],
+    borderRadius: radius.pill,
+    backgroundColor: c.accent,
+    borderWidth: 1,
+    borderColor: c.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  following: { backgroundColor: 'transparent', borderColor: c.line },
+  followText: { color: c.bg, fontSize: fontSize.label, fontWeight: fontWeight.bold },
+  bio: { color: c.muted, fontSize: fontSize.body, lineHeight: lineHeight.content },
+  statLine: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', rowGap: space[4] },
+  statItem: { flexDirection: 'row', alignItems: 'center' },
+  statDot: { color: c.muted, fontSize: fontSize.body, marginHorizontal: space[8] },
+  statLabel: { color: c.muted, fontSize: fontSize.body, lineHeight: lineHeight.content },
+  statNumber: { color: c.text, fontWeight: fontWeight.bold },
+  eyebrow: {
     color: c.muted,
     fontSize: fontSize.smallLabel,
-    fontWeight: fontWeight.medium,
-    marginBottom: space[6],
+    fontWeight: fontWeight.bold,
+    letterSpacing: tracking.badge,
+    textTransform: 'uppercase',
   },
-  statRow: {
+  sceneText: { color: c.accent, fontSize: fontSize.navigation },
+  statDivider: { height: StyleSheet.hairlineWidth, backgroundColor: c.line },
+  linkRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: space[10],
+    gap: space[12],
+    minHeight: 52,
+    paddingHorizontal: space[16],
   },
-  statDivider: { height: StyleSheet.hairlineWidth, backgroundColor: c.line },
-  number: { color: c.text, fontSize: fontSize.section, fontWeight: fontWeight.bold },
   scene: {
     backgroundColor: c.selected,
     borderRadius: radius.pill,
-    paddingHorizontal: space[12],
-    paddingVertical: space[6],
+    paddingHorizontal: space[14],
+    paddingVertical: space[7],
   },
 });
