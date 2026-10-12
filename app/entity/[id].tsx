@@ -30,7 +30,12 @@ export default function EntityProfile() {
   const uid = useLocal((state) => state.uid);
   return (
     <>
-      <Stack.Screen options={{ title: type === 'producer' ? 'Producer' : 'Artist' }} />
+      <Stack.Screen
+        options={{
+          title: type === 'producer' ? 'Producer' : 'Artist',
+          headerShown: type !== 'producer',
+        }}
+      />
       {type === 'producer' ? (
         <ProducerProfile key={`${uid}:${id}`} id={id} />
       ) : (
@@ -67,7 +72,11 @@ function ArtistProfile({ id }: { id: string }) {
         }}
         initialNumToRender={12}
         windowSize={7}
-        renderItem={({ item }) => <TrackRow track={item} />}
+        renderItem={({ item }) => (
+          <View style={{ marginBottom: space[10] }}>
+            <TrackRow track={item} />
+          </View>
+        )}
         ListHeaderComponent={
           <View style={{ gap: space[18] }}>
             <View style={s.panel}>

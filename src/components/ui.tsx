@@ -7,7 +7,7 @@ import {
   space,
   tracking,
 } from '../../shared/theme';
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -22,6 +22,7 @@ import {
   type TextStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import type { Tier } from '../../shared/domain';
 import { colors as c, tierColors as metal } from '../../shared/brand';
@@ -41,6 +42,12 @@ export const s = StyleSheet.create({
     fontWeight: fontWeight.heavy,
     letterSpacing: tracking.title,
     color: c.text,
+  },
+  displayHeading: {
+    fontFamily: fontFamily.displayBold,
+    fontWeight: fontWeight.regular,
+    fontSize: fontSize.studio,
+    letterSpacing: tracking.brand,
   },
   displayTitle: {
     fontFamily: fontFamily.display,
@@ -84,7 +91,16 @@ export const s = StyleSheet.create({
 // The tab navigator already reserves the home-indicator area below its scenes.
 // Root stack screens retain their own bottom protection.
 export const BottomInsetHandledContext = createContext(false);
-export function Page({ children, scroll = true }: { children: React.ReactNode; scroll?: boolean }) {
+export function Page({
+  children,
+  scroll = true,
+  gap,
+}: {
+  children: React.ReactNode;
+  scroll?: boolean;
+  /** Space between top-level blocks; defaults to the body gap. */
+  gap?: number;
+}) {
   const bottomInsetHandled = useContext(BottomInsetHandledContext);
   return (
     <SafeAreaView
@@ -92,7 +108,10 @@ export function Page({ children, scroll = true }: { children: React.ReactNode; s
       edges={bottomInsetHandled ? ['left', 'right'] : ['left', 'right', 'bottom']}
     >
       {scroll ? (
-        <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={[s.body, gap !== undefined && { gap }]}
+          keyboardShouldPersistTaps="handled"
+        >
           {children}
         </ScrollView>
       ) : (
@@ -105,16 +124,19 @@ export function Heading({
   eyebrow,
   title,
   right,
+  display = false,
 }: {
   eyebrow?: string;
   title: string;
   right?: React.ReactNode;
+  /** Sets the title in the Panchang display face. */
+  display?: boolean;
 }) {
   return (
     <View style={s.between}>
       <View style={{ flex: 1, gap: space[5] }}>
         {eyebrow ? <Text style={s.mono}>{eyebrow}</Text> : null}
-        <Text accessibilityRole="header" style={s.title}>
+        <Text accessibilityRole="header" style={[s.title, display && s.displayHeading]}>
           {title}
         </Text>
       </View>
@@ -324,3 +346,79 @@ export function Section({
     </View>
   );
 }
+/** Pill toggle whose highlight slides between options. `subtle` uses a navy highlight. */
+export function Segmented<T extends string>({
+  options,
+  value,
+  onChange,
+  subtle = false,
+}: {
+  options: readonly { value: T; label: string }[];
+  value: T;
+  onChange: (value: T) => void;
+  subtle?: boolean;
+}) {
+  const [width, setWidth] = useState(0);
+  const index = Math.max(
+    options.findIndex((o) => o.value === value),
+    0,
+  );
+  const thumb = useAnimatedStyle(() => ({
+    transform: [{ translateX: withTiming((index * width) / options.length, { duration: 200 }) }],
+  }));
+  return (
+    <View
+      accessibilityRole="tablist"
+      style={[segmented.track, subtle && { backgroundColor: c.bg }]}
+      onLayout={(e) => setWidth(e.nativeEvent.layout.width - space[4] * 2 - 2)}
+    >
+      {width ? (
+        <Animated.View
+          style={[
+            segmented.thumb,
+            { width: width / options.length, backgroundColor: subtle ? c.banner : c.accent },
+            thumb,
+          ]}
+        />
+      ) : null}
+      {options.map((o, i) => (
+        <Pressable
+          key={o.value}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: i === index }}
+          onPress={() => onChange(o.value)}
+          style={segmented.tab}
+        >
+          <Text
+            style={[
+              segmented.label,
+              { color: i === index ? (subtle ? c.text : c.bg) : c.muted },
+              subtle && i === index && { fontWeight: fontWeight.bold },
+            ]}
+          >
+            {o.label}
+          </Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+const segmented = StyleSheet.create({
+  track: {
+    flexDirection: 'row',
+    padding: space[4],
+    borderRadius: radius.pill,
+    backgroundColor: c.panel,
+    borderWidth: 1,
+    borderColor: c.line,
+  },
+  thumb: {
+    position: 'absolute',
+    top: space[4],
+    bottom: space[4],
+    left: space[4],
+    borderRadius: radius.pill,
+  },
+  tab: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center' },
+  label: { fontSize: fontSize.navigation, fontWeight: fontWeight.medium },
+});

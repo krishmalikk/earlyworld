@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { Stack, useRouter, useSegments, useGlobalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
+import { DMMono_400Regular, DMMono_500Medium } from '@expo-google-fonts/dm-mono';
 import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { getAnalytics, logScreenView } from '@react-native-firebase/analytics';
@@ -72,11 +73,14 @@ function Navigation() {
       <Stack.Screen name="entity/[id]" options={{ title: 'Artist & producer' }} />
       <Stack.Screen name="user/ratings/[id]" options={{ title: 'Ratings & reviews' }} />
       <Stack.Screen name="user/[id]" options={{ title: 'Profile' }} />
+      <Stack.Screen name="share" options={{ title: 'Share', presentation: 'modal' }} />
     </Stack>
   );
 }
 export default function Layout() {
   const [fontsLoaded, fontError] = useFonts({
+    DMMono_400Regular,
+    DMMono_500Medium,
     'Panchang-Regular': require('../assets/fonts/panchang/Panchang-Regular.otf'),
     'Panchang-Medium': require('../assets/fonts/panchang/Panchang-Medium.otf'),
     'Panchang-Bold': require('../assets/fonts/panchang/Panchang-Bold.otf'),

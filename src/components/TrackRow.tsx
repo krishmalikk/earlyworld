@@ -83,10 +83,15 @@ export function TrackRow({
   track,
   showOwnRating = true,
   variant = 'row',
+  onSelect,
+  selected = false,
 }: {
   track: Track;
   showOwnRating?: boolean;
   variant?: 'row' | 'card' | 'embedded' | 'feature';
+  /** Turns the compact card into a picker option instead of a link to the track. */
+  onSelect?: () => void;
+  selected?: boolean;
 }) {
   const { byTrack } = useRatings();
   const rating = showOwnRating ? byTrack.get(track.id) : undefined;
@@ -96,12 +101,13 @@ export function TrackRow({
   if (!card && !embedded) {
     const average = averageRating(track.ratingCount, track.ratingHalfStarSum);
     return (
-      <View style={styles.compactCard}>
+      <View style={[styles.compactCard, selected && styles.selectedCard]}>
         <View style={styles.compactContent}>
           <Pressable
             accessibilityRole="button"
+            accessibilityState={onSelect ? { selected } : undefined}
             accessibilityLabel={`${track.title} by ${track.artistName}${track.producerName ? `, produced by ${track.producerName}` : ''}`}
-            onPress={() => router.push(`/track/${track.id}`)}
+            onPress={onSelect ?? (() => router.push(`/track/${track.id}`))}
             style={({ pressed }) => [styles.compactIdentity, { opacity: pressed ? 0.7 : 1 }]}
           >
             <View style={styles.cover}>
@@ -131,7 +137,12 @@ export function TrackRow({
               ) : null}
             </View>
           </Pressable>
-          <View style={styles.compactActions}>
+          <Pressable
+            disabled={!onSelect}
+            accessible={false}
+            onPress={onSelect}
+            style={styles.compactActions}
+          >
             {average ? (
               <View
                 accessible
@@ -144,10 +155,22 @@ export function TrackRow({
                 </Text>
               </View>
             ) : (
-              <Text style={styles.unrated}>No ratings yet</Text>
+              <Text numberOfLines={1} style={styles.unrated}>
+                No ratings
+              </Text>
             )}
-            <SaveButton track={track} onError={setSaveError} />
-          </View>
+            {onSelect ? (
+              <View style={{ minHeight: 44, justifyContent: 'center' }}>
+                <Ionicons
+                  name={selected ? 'checkmark-circle' : 'add-circle-outline'}
+                  size={26}
+                  color={selected ? c.accent : c.muted}
+                />
+              </View>
+            ) : (
+              <SaveButton track={track} onError={setSaveError} />
+            )}
+          </Pressable>
         </View>
         <ErrorLine message={saveError} />
       </View>
@@ -225,7 +248,14 @@ export function TrackRow({
 }
 
 const styles = StyleSheet.create({
-  compactCard: { backgroundColor: c.panel, borderRadius: radius.large, padding: space[12] },
+  compactCard: {
+    backgroundColor: c.panel,
+    borderRadius: radius.large,
+    padding: space[12],
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  selectedCard: { borderColor: c.accent },
   compactContent: { flexDirection: 'row', alignItems: 'center', gap: space[8] },
   compactIdentity: {
     flex: 1,

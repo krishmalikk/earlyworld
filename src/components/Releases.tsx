@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { doc } from '@react-native-firebase/firestore';
 import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { space, radius, fontWeight } from '../../shared/theme';
 import { useCatalogIds, useCatalogPage } from '../data/catalog';
 import { useRatings } from '../data/ratings';
@@ -20,14 +21,30 @@ export const releaseLabels = {
   compilation: 'Compilation',
   single: 'Single',
 };
-export function ReleaseCard({ release }: { release: Release }) {
+export function ReleaseCard({
+  release,
+  onSelect,
+  selected = false,
+}: {
+  release: Release;
+  /** Turns the card into a picker option instead of a link to the release. */
+  onSelect?: () => void;
+  selected?: boolean;
+}) {
   const own = useRatings().byRelease.get(release.id);
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityState={onSelect ? { selected } : undefined}
       accessibilityLabel={`${release.title} by ${release.artistName}, ${releaseLabels[release.releaseType]}`}
-      onPress={() => router.push(`/release/${release.id}`)}
-      style={[s.panel, s.row, { borderWidth: 0, marginBottom: space[10] }]}
+      onPress={onSelect ?? (() => router.push(`/release/${release.id}`))}
+      style={[
+        s.panel,
+        s.row,
+        onSelect
+          ? { borderWidth: 1, borderColor: selected ? c.accent : 'transparent' }
+          : { borderWidth: 0, marginBottom: space[10] },
+      ]}
     >
       <View style={{ borderRadius: radius.medium, overflow: 'hidden' }}>
         <Artwork uri={release.artworkUrl} name={release.title} size={64} />
@@ -52,6 +69,13 @@ export function ReleaseCard({ release }: { release: Release }) {
           </View>
         ) : null}
       </View>
+      {onSelect ? (
+        <Ionicons
+          name={selected ? 'checkmark-circle' : 'add-circle-outline'}
+          size={26}
+          color={selected ? c.accent : c.muted}
+        />
+      ) : null}
     </Pressable>
   );
 }

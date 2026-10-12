@@ -94,7 +94,7 @@ export default function Discover() {
         ListHeaderComponent={
           <View style={{ gap: space[20], paddingBottom: space[12] }}>
             <View style={{ gap: space[6] }}>
-              <Heading title="Find your next favorite." />
+              <Heading display title="Find your next favorite." />
               <Text style={s.muted}>Tracks, releases, and the people behind them.</Text>
             </View>
             <Field
@@ -170,7 +170,9 @@ export default function Discover() {
           'release' in item ? (
             <ReleaseCard release={item.release} />
           ) : 'track' in item ? (
-            <TrackRow track={item.track} />
+            <View style={{ marginBottom: space[10] }}>
+              <TrackRow track={item.track} />
+            </View>
           ) : (
             <View style={[s.grid, { paddingBottom: space[10] }]}>
               {item.entities.map((entity) =>

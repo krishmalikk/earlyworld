@@ -14,7 +14,8 @@ export default function TabLayout() {
           headerTitleAlign: 'left',
           headerTitleStyle: {
             fontSize: fontSize.section,
-            fontWeight: fontWeight.heavy,
+            fontFamily: fontFamily.displayBold,
+            fontWeight: fontWeight.regular,
             letterSpacing: tracking.brand,
           },
           headerShadowVisible: false,

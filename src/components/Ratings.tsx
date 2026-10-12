@@ -23,6 +23,7 @@ import { ratingLabel } from '../../shared/ratings';
 import { Button, c, ErrorLine, Field, s, Section } from './ui';
 import { SaveButton, TrackRow, platformNames } from './TrackRow';
 import { UserLine } from './UserLine';
+import { useLocal } from '../state/local';
 import { Stars, CommunityRating } from './RatingDisplay';
 
 export function RatingEditor({
@@ -114,6 +115,16 @@ export function RatingEditor({
       <Button onPress={begin} disabled={loading || !!loadError}>
         {existing ? 'Edit rating & review' : 'Rate & review'}
       </Button>
+      {kind === 'track' && existing?.review ? (
+        <Button
+          quiet
+          onPress={() =>
+            router.push({ pathname: '/share', params: { card: 'review', trackId: track.id } })
+          }
+        >
+          Share review
+        </Button>
+      ) : null}
       {revision ? (
         <Text style={s.muted}>
           {revision.status === 'pending'
@@ -263,6 +274,7 @@ export function RatingCard({
   excerpt?: boolean;
 }) {
   const catalog = useCatalogIds('tracks', showTrack ? [rating.trackId] : []);
+  const currentUid = useLocal((s) => s.uid);
   const [saveError, setSaveError] = useState<string | null>(null);
   const track = catalog.byId.get(rating.trackId);
   const edited = rating.updatedAt?.toMillis() > rating.createdAt?.toMillis();
@@ -305,17 +317,33 @@ export function RatingCard({
           <SaveButton track={track} onError={setSaveError} />
         </View>
       ) : null}
-      <Button
-        quiet
-        onPress={() =>
-          router.push({
-            pathname: '/community',
-            params: { reportKind: 'rating', reportId: rating.id },
-          })
-        }
-      >
-        Report review
-      </Button>
+      {rating.uid === currentUid ? (
+        rating.review ? (
+          <Button
+            quiet
+            onPress={() =>
+              router.push({
+                pathname: '/share',
+                params: { card: 'review', trackId: rating.trackId },
+              })
+            }
+          >
+            Share review
+          </Button>
+        ) : null
+      ) : (
+        <Button
+          quiet
+          onPress={() =>
+            router.push({
+              pathname: '/community',
+              params: { reportKind: 'rating', reportId: rating.id },
+            })
+          }
+        >
+          Report review
+        </Button>
+      )}
       <ErrorLine message={saveError} />
       {excerpt && rating.review ? (
         <Pressable

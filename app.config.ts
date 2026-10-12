@@ -40,6 +40,8 @@ const config: ExpoConfig = {
     '@react-native-firebase/crashlytics',
     ['@react-native-firebase/analytics', { ios: { withoutAdIdSupport: true } }],
     ['expo-build-properties', { ios: { useFrameworks: 'static' } }],
+    // Share cards save with write-only access; expo-image-picker below keeps the library prompt copy.
+    ['expo-media-library', { savePhotosPermission: 'Save your earlyworld share cards to Photos.' }],
     ['expo-image-picker', { photosPermission: 'Choose photos and videos to share on earlyworld.' }],
   ],
   extra: process.env.EAS_PROJECT_ID ? { eas: { projectId: process.env.EAS_PROJECT_ID } } : {},

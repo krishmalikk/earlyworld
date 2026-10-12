@@ -42,6 +42,7 @@ export default function Matches() {
       <Heading
         eyebrow="Matches"
         title="Shared taste"
+        display
         right={
           data.length ? (
             <View style={styles.countPill}>

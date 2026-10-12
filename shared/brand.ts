@@ -21,6 +21,7 @@ export const colors = {
   highlight: logoPalette.lilac,
   artworkBg: '#18223A',
   selected: '#202A48',
+  banner: '#1D2552',
   error: '#F6988F',
 } as const;
 
