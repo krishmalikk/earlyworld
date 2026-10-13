@@ -66,7 +66,6 @@ function Navigation() {
       <Stack.Screen name="videos" options={{ headerShown: false }} />
       <Stack.Screen name="settings" options={{ headerShown: false }} />
       <Stack.Screen name="community" options={{ title: 'Community' }} />
-      <Stack.Screen name="moderation" options={{ title: 'Moderation' }} />
       <Stack.Screen name="release/[id]" options={{ title: 'Release' }} />
       <Stack.Screen name="user/releases/[id]" options={{ title: 'Release reviews' }} />
       <Stack.Screen name="track/[id]" options={{ title: 'Track' }} />
@@ -74,6 +73,7 @@ function Navigation() {
       <Stack.Screen name="user/ratings/[id]" options={{ title: 'Ratings & reviews' }} />
       <Stack.Screen name="user/[id]" options={{ title: 'Profile' }} />
       <Stack.Screen name="share" options={{ title: 'Share', presentation: 'modal' }} />
+      <Stack.Screen name="edit-profile" options={{ title: 'Edit profile' }} />
     </Stack>
   );
 }

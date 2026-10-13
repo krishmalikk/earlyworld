@@ -213,7 +213,7 @@ export function PostCard({
       ) : (
         <Text style={s.muted}>
           {post.status === 'pending'
-            ? 'Awaiting review'
+            ? 'Publishing'
             : post.status === 'processing'
               ? 'Processing media'
               : post.status}

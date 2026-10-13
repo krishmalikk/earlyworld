@@ -87,3 +87,7 @@ Operational process: moderators review the complete video (including audio), all
 - Worker dependency audit reports two moderate transitive advisories (`gaxios`/`uuid`); no critical/high advisories remain in that worker audit. Resolve or review these before public launch; do not force a breaking dependency override without validation.
 
 No public launch, legal signoff, physical-device result, or guaranteed $100 cap is implied by these checks.
+
+## October 12: publishing without review
+
+Moderation review was removed. Posts, videos, comments, written reviews, track discussions, usernames and profile changes publish as soon as they are submitted; posts and profile photos publish when their media finishes processing. `publishSubmission` (`functions/src/social-publish.ts`) holds the former approval logic, so publication identity, comment and review counts, block checks and suspension checks are unchanged. The moderation screen, `listModeration` and `moderateSocialContent` were deleted, and the `publication` switch no longer gates anything. Reporting, blocking, owner deletion and admin `suspendSocialAccount` / `resolveSocialReport` remain; there is no in-app screen for reports, so read `_socialReports` in the Firebase console. The `creation`, `uploads` and `playback` switches still control who can post media and whether videos play. Submissions that were pending before this change are not published automatically.

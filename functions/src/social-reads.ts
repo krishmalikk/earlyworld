@@ -166,7 +166,12 @@ export const readCommunity = onCall(async (r) => {
       (await db.doc(`users/${uid}/following/${who}`).get()).data()?.targetType !== 'user'
     )
       continue;
-    items.push({ id: d.id, ...serialize(p) });
+    // Owner-only view: preview a pending profile photo before it is approved.
+    const photo =
+      kind === 'textSubmissions' && p.status === 'pending' && p.photoMediaId
+        ? await mediaDTO(p.photoMediaId, false)
+        : null;
+    items.push({ id: d.id, ...serialize(p), ...(photo?.url ? { photoUrl: photo.url } : {}) });
     if (items.length === 25) break;
   }
   return { items, cursor: docs.size === 250 || items.length === 25 ? cursor : null };

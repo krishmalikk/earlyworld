@@ -1,6 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { db, FieldValue, hash, rateLimit, requiredText } from './core';
 import { socialContext, touchSocial } from './social-core';
+import { publishSubmission } from './social-publish';
 import { REVIEW_LIMIT, validHalfStars } from '../../shared/ratings';
 
 export const ratingId = (uid: string, trackId: string) => hash(`${uid}:${trackId}`);
@@ -25,11 +26,12 @@ function ratingApi(kind: 'track' | 'release') {
       throw new HttpsError('invalid-argument', 'Keep your review within 500 characters.');
     const review = rawReview.trim();
     await rateLimit(uid, kind === 'track' ? 'rating' : 'releaseRating', 60);
-    return db.runTransaction(async (tx) => {
+    const submissionId = hash(`review:${ratings}:${uid}:${trackId}`);
+    const result = await db.runTransaction(async (tx) => {
       const ref = db.doc(`${ratings}/${ratingId(uid, trackId)}`);
       const trackRef = db.doc(`${items}/${trackId}`),
         userRef = db.doc(`users/${uid}`);
-      const submission = db.doc(`_textSubmissions/${hash(`review:${ratings}:${uid}:${trackId}`)}`);
+      const submission = db.doc(`_textSubmissions/${submissionId}`);
       const [previous, track, user, pending] = await Promise.all([
         tx.get(ref),
         tx.get(trackRef),
@@ -68,17 +70,8 @@ function ratingApi(kind: 'track' | 'release') {
             version,
             createdAt: FieldValue.serverTimestamp(),
           });
-          tx.set(db.doc(`_moderation/text_${submission.id}`), {
-            uid,
-            kind: 'text',
-            targetId: submission.id,
-            version,
-            status: 'pending',
-            createdAt: FieldValue.serverTimestamp(),
-          });
         } else {
           tx.delete(submission);
-          tx.delete(db.doc(`_moderation/text_${submission.id}`));
         }
       }
       const countDelta = previous.exists ? 0 : 1;
@@ -111,6 +104,9 @@ function ratingApi(kind: 'track' | 'release') {
         reviewPending: !!review && (reviewChanged || pending.data()?.status === 'pending'),
       };
     });
+    if (result.reviewPending && (await publishSubmission('text', submissionId)))
+      return { changed: true, reviewPending: false };
+    return result;
   });
 
   const deleteRating = onCall(async (request) => {
@@ -131,7 +127,6 @@ function ratingApi(kind: 'track' | 'release') {
       if (!previous.exists) return { changed: false };
       tx.delete(ref);
       tx.delete(submission);
-      tx.delete(db.doc(`_moderation/text_${submission.id}`));
       touchSocial(tx, uid);
       if (track.exists)
         tx.update(trackRef, {

@@ -52,8 +52,6 @@ export {
   deleteSocialContent,
   reportSocialContent,
   setUserBlock,
-  listModeration,
-  moderateSocialContent,
   resolveSocialReport,
   suspendSocialAccount,
 } from './social';

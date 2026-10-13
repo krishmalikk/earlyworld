@@ -1,5 +1,3 @@
-import * as FileSystem from 'expo-file-system/legacy';
-import { newPostId } from '../src/data/post-drafts';
 import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,15 +14,13 @@ import {
   where,
 } from '@react-native-firebase/firestore';
 import { signOut } from '@react-native-firebase/auth';
-import * as ImagePicker from 'expo-image-picker';
-import * as ImageManipulator from 'expo-image-manipulator';
-import { ref as storageRef, putFile } from '@react-native-firebase/storage';
 import { useSession } from '../src/data/session';
 import { useCatalogPage } from '../src/data/catalog';
 import { useCollection } from '../src/data/listeners';
 import { useSaves } from '../src/data/saves';
 import { useLocal } from '../src/state/local';
-import { auth, call, db, errorMessage, storage } from '../src/lib/firebase';
+import { auth, call, db, errorMessage } from '../src/lib/firebase';
+import { pickProfilePhoto, uploadProfilePhoto } from '../src/data/profile-photo';
 import { reserveUsername } from '../src/data/actions';
 import type { Follow } from '../src/data/types';
 import { SCENES } from '../shared/domain';
@@ -112,20 +108,8 @@ export default function Onboarding() {
   const advance = (next: number, fields: object = {}) =>
     updateDoc(doc(db, 'users', uid!), { onboardingStep: next, ...fields });
   async function photo() {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.9,
-    });
-    if (!result.canceled) {
-      const resized = await ImageManipulator.manipulateAsync(
-        result.assets[0].uri,
-        [{ resize: { width: 512 } }],
-        { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
-      );
-      setAvatar(resized.uri);
-    }
+    const uri = await pickProfilePhoto();
+    if (uri) setAvatar(uri);
   }
   if (loading) return <SafeAreaView style={s.page} />;
   if (!user)
@@ -224,19 +208,7 @@ export default function Onboarding() {
               busy={busy}
               onPress={() =>
                 act(async () => {
-                  let photoMediaId: string | undefined;
-                  if (avatar) {
-                    const info = await FileSystem.getInfoAsync(avatar);
-                    if (!info.exists) throw Error('Choose your photo again.');
-                    photoMediaId = newPostId();
-                    const ticket = await call<{ path: string }>('authorizeProfilePhoto', {
-                      id: photoMediaId,
-                      bytes: info.size,
-                    });
-                    await putFile(storageRef(storage, ticket.path), avatar, {
-                      contentType: 'image/jpeg',
-                    });
-                  }
+                  const photoMediaId = avatar ? await uploadProfilePhoto(avatar) : undefined;
                   await call('submitProfileText', {
                     bio,
                     ...(photoMediaId ? { photoMediaId } : {}),

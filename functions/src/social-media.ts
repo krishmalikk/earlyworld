@@ -4,6 +4,7 @@ import { GoogleAuth } from 'google-auth-library';
 import { getStorage } from 'firebase-admin/storage';
 import { db, FieldValue, hash } from './core';
 import { Timestamp, touchSocial } from './social-core';
+import { publishSubmission } from './social-publish';
 
 export const receivePostMedia = onObjectFinalized(
   { region: 'us-east1', retry: true },
@@ -51,11 +52,16 @@ export const receivePostMedia = onObjectFinalized(
 );
 
 export async function advancePost(postId: string) {
-  await db.runTransaction(async (tx) => {
+  // A profile photo publishes the profile revision waiting on it.
+  if (postId.startsWith('profile_')) {
+    await publishSubmission('text', hash(`profile:${postId.slice('profile_'.length)}`));
+    return;
+  }
+  const ready = await db.runTransaction(async (tx) => {
     const ref = db.doc(`_postDrafts/${postId}`),
       snap = await tx.get(ref),
       p = snap.data();
-    if (!p || p.status !== 'processing') return;
+    if (!p || p.status !== 'processing') return false;
     const media = await Promise.all(
       p.mediaIds.map((id: string) => tx.get(db.doc(`_socialMedia/${id}`))),
     );
@@ -67,20 +73,14 @@ export async function advancePost(postId: string) {
           : 'A file could not be processed. Remove it and choose another.',
       });
       touchSocial(tx, p.uid);
-      return;
+      return false;
     }
-    if (!media.every((m) => m.data()?.status === 'ready')) return;
+    if (!media.every((m) => m.data()?.status === 'ready')) return false;
     tx.update(ref, { status: 'pending', updatedAt: FieldValue.serverTimestamp() });
-    tx.set(db.doc(`_moderation/post_${postId}`), {
-      kind: 'post',
-      targetId: postId,
-      uid: p.uid,
-      version: p.version,
-      status: 'pending',
-      createdAt: FieldValue.serverTimestamp(),
-    });
     touchSocial(tx, p.uid);
+    return true;
   });
+  if (ready) await publishSubmission('post', postId);
 }
 export const processPostMedia = onSchedule(
   { schedule: 'every 1 minutes', timeoutSeconds: 300, maxInstances: 1 },

@@ -16,16 +16,14 @@ import { useCatalogIds } from '../data/catalog';
 import { call, db, errorMessage } from '../lib/firebase';
 import { useLocal } from '../state/local';
 import { follow } from '../data/actions';
-import type { Follow, Rotation, Save, User } from '../data/types';
-import { Artwork, Button, Empty, ErrorLine, Field, c, Page, s, Section } from './ui';
+import type { Follow, Rotation, Save, TextSubmission, User } from '../data/types';
+import { Artwork, Button, Empty, ErrorLine, c, Page, s, Section } from './ui';
 import { EntityCard } from './EntityCard';
 import { TrackRow } from './TrackRow';
 export function Profile({ uid }: { uid: string }) {
   const currentUid = useLocal((s) => s.uid),
     own = uid === currentUid;
-  const [error, setError] = useState<string | null>(null),
-    [editing, setEditing] = useState(false),
-    [bio, setBio] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const refs = useMemo(
     () => ({
       user: doc(db, 'users', uid),
@@ -46,14 +44,7 @@ export function Profile({ uid }: { uid: string }) {
   );
   const highest = useRatingList({ uid, highest: true, count: 12 });
   const recent = useRatingList({ uid, count: 5 });
-  const submissions = useCommunity<{
-    id: string;
-    kind: string;
-    status: string;
-    reason?: string;
-    body?: string;
-    fields?: { bio?: string };
-  }>({ kind: 'textSubmissions' }, 25, own);
+  const submissions = useCommunity<TextSubmission>({ kind: 'textSubmissions' }, 25, own);
   const certified = rotation.data.filter((r) => r.tier);
   return (
     <Page gap={space[30]}>
@@ -112,14 +103,11 @@ export function Profile({ uid }: { uid: string }) {
             {own ? (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={editing ? 'Cancel bio edit' : 'Edit bio'}
-                onPress={() => {
-                  setEditing(!editing);
-                  setBio(user.data?.bio || '');
-                }}
+                accessibilityLabel="Edit profile"
+                onPress={() => router.push('/edit-profile')}
                 style={({ pressed }) => [styles.editButton, { opacity: pressed ? 0.7 : 1 }]}
               >
-                <Ionicons name={editing ? 'close' : 'pencil-outline'} size={18} color={c.text} />
+                <Ionicons name="pencil-outline" size={18} color={c.text} />
               </Pressable>
             ) : currentUid ? (
               <Pressable
@@ -191,34 +179,6 @@ export function Profile({ uid }: { uid: string }) {
               </View>
             </View>
           ) : null}
-          {own && editing ? (
-            <View style={{ gap: space[12] }}>
-              <Field
-                accessibilityLabel="Profile bio"
-                multiline
-                maxLength={160}
-                value={bio}
-                onChangeText={setBio}
-                autoFocus
-              />
-              <Button
-                onPress={async () => {
-                  try {
-                    await call('submitProfileText', { bio });
-                    setEditing(false);
-                    Alert.alert(
-                      'Awaiting review',
-                      'Your current bio stays visible until the change is approved.',
-                    );
-                  } catch (e) {
-                    setError(errorMessage(e));
-                  }
-                }}
-              >
-                Submit bio for review
-              </Button>
-            </View>
-          ) : null}
         </View>
       </View>
       <ErrorLine
@@ -264,16 +224,25 @@ export function Profile({ uid }: { uid: string }) {
           {submissions.data
             .filter((p) => p.status !== 'approved')
             .map((p) => (
-              <View key={p.id} style={s.panel}>
-                <Text style={s.text}>
-                  {p.kind === 'review'
-                    ? 'Review'
-                    : p.kind === 'profile'
-                      ? 'Profile update'
-                      : 'Comment'}{' '}
-                  · {p.status === 'pending' ? 'Awaiting review' : 'Not approved'}
-                </Text>
-                <Text style={s.muted}>{p.reason || p.body || p.fields?.bio}</Text>
+              <View key={p.id} style={[s.panel, p.photoUrl ? s.row : null]}>
+                {p.photoUrl ? (
+                  <View style={styles.avatarInner}>
+                    <Artwork uri={p.photoUrl} name={user.data?.username || 'ew'} size={48} />
+                  </View>
+                ) : null}
+                <View style={{ flex: 1, gap: space[4] }}>
+                  <Text style={s.text}>
+                    {p.kind === 'review'
+                      ? 'Review'
+                      : p.kind === 'profile'
+                        ? p.photoMediaId
+                          ? 'Photo & bio update'
+                          : 'Bio update'
+                        : 'Comment'}{' '}
+                    · {p.status === 'pending' ? 'Processing' : 'Not published'}
+                  </Text>
+                  <Text style={s.muted}>{p.reason || p.body || p.fields?.bio}</Text>
+                </View>
               </View>
             ))}
         </Section>

@@ -11,8 +11,8 @@ export function CommunityPolicy({ section }: { section?: 'rules' | 'privacy' }) 
             must have sharing permission too.
           </Text>
           <Text style={s.muted}>
-            Posts, videos, written reviews, comments, and public profile changes are reviewed before
-            publication. You can report content, block users, or delete your own submissions.
+            Posts, videos, written reviews, comments, and profile changes publish right away. You
+            can report content, block users, or delete your own posts.
           </Text>
         </Section>
       )}

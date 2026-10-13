@@ -15,7 +15,6 @@ import {
   blocked,
   makeCursor,
   postDTO,
-  mediaDTO,
   quota,
   readCursor,
   resolveAttachment,
@@ -25,6 +24,7 @@ import {
   touchSocial,
   visiblePost,
 } from './social-core';
+import { publishSubmission } from './social-publish';
 
 export const getSocialStatus = onCall(async (r) => {
   const c = await socialContext(r);
@@ -32,6 +32,7 @@ export const getSocialStatus = onCall(async (r) => {
     creation: c.admin || c.flags.creation === true,
     publication: c.flags.publication === true,
     playback: c.flags.playback === true,
+    uploads: c.flags.uploads === true,
     admin: c.admin,
     eligible: c.account.eligible === true,
     supportEmail: c.flags.supportEmail || 'earlyworldofficial@gmail.com',
@@ -185,7 +186,7 @@ export const submitPost = onCall(async (r) => {
     id = socialId(r.data?.id);
   if (r.data?.rightsConfirmed !== true)
     throw new HttpsError('invalid-argument', 'Confirm you have permission to share this content.');
-  return db.runTransaction(async (tx) => {
+  const result = await db.runTransaction(async (tx) => {
     const ref = db.doc(`_postDrafts/${id}`),
       d = await tx.get(ref),
       p = d.data();
@@ -219,18 +220,12 @@ export const submitPost = onCall(async (r) => {
       rightsConfirmedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     });
-    if (status === 'pending')
-      tx.set(db.doc(`_moderation/post_${id}`), {
-        kind: 'post',
-        targetId: id,
-        uid,
-        version: p.version,
-        status: 'pending',
-        createdAt: FieldValue.serverTimestamp(),
-      });
     touchSocial(tx, uid);
     return { status };
   });
+  if (result.status === 'pending' && (await publishSubmission('post', id)))
+    return { status: 'published' };
+  return result;
 });
 export const getPost = onCall(async (r) => {
   const c = await socialContext(r),
@@ -392,16 +387,11 @@ export const createPostComment = onCall(async (r) => {
       status: 'pending',
       createdAt: FieldValue.serverTimestamp(),
     });
-    tx.set(db.doc(`_moderation/comment_${id}`), {
-      kind: 'comment',
-      uid,
-      targetId: id,
-      status: 'pending',
-      createdAt: FieldValue.serverTimestamp(),
-    });
     touchSocial(tx, uid);
   });
-  return { id, status: 'pending' };
+  await publishSubmission('comment', id);
+  const status = (await db.doc(`_postComments/${id}`).get()).data()?.status;
+  return { id, status };
 });
 export const listPostComments = onCall(async (r) => {
   const { uid } = await socialContext(r),
@@ -456,7 +446,6 @@ export const deleteSocialContent = onCall(async (r) => {
       pub = await tx.get(publicRef);
     if (p.status === 'deleted') return;
     tx.update(ref, { status: 'deleted', updatedAt: FieldValue.serverTimestamp() });
-    tx.delete(db.doc(`_moderation/${comment ? 'comment' : 'post'}_${id}`));
     if (comment && p.status === 'approved' && pub.exists)
       tx.update(publicRef, { commentCount: Math.max(0, (pub.data()!.commentCount || 0) - 1) });
     if (!comment) {
@@ -524,164 +513,6 @@ export const setUserBlock = onCall(async (r) => {
     { merge: true },
   );
   await batch.commit();
-  return { ok: true };
-});
-export const listModeration = onCall(async (r) => {
-  assertAdmin(r);
-  const reports = r.data?.reports === true;
-  let q: Query = db
-    .collection(reports ? '_socialReports' : '_moderation')
-    .where('status', '==', reports ? 'open' : 'pending')
-    .orderBy('createdAt')
-    .orderBy(FieldPath.documentId());
-  const cursor = readCursor(r.data?.cursor);
-  if (cursor) q = q.startAfter(...cursor);
-  const snap = await q.limit(25).get();
-  const items = await Promise.all(
-    snap.docs.map(async (d) => {
-      const m = d.data();
-      if (reports) {
-        const target = await reportTarget(m.kind, m.targetId, m.trackId);
-        return { id: d.id, ...m, subjectUid: target.uid, content: target.content };
-      }
-      let content: unknown = null;
-      if (m.kind === 'post') {
-        const p = await db.doc(`_postDrafts/${m.targetId}`).get();
-        if (p.exists) content = await postDTO(p.id, p.data()!, r.auth!.uid, true, true);
-      } else
-        content =
-          (
-            await db
-              .doc(`${m.kind === 'comment' ? '_postComments' : '_textSubmissions'}/${m.targetId}`)
-              .get()
-          ).data() || null;
-      if (
-        content &&
-        typeof content === 'object' &&
-        'photoMediaId' in content &&
-        typeof content.photoMediaId === 'string'
-      )
-        content = { ...content, photo: await mediaDTO(content.photoMediaId, false) };
-      return { id: d.id, ...m, content };
-    }),
-  );
-  const last = snap.docs.at(-1);
-  return { items, cursor: snap.size === 25 ? makeCursor(last!.data().createdAt, last!.id) : null };
-});
-export const moderateSocialContent = onCall(async (r) => {
-  assertAdmin(r);
-  const id = socialId(r.data?.id),
-    approve = r.data?.approve === true,
-    reason = approve ? '' : requiredText(r.data?.reason, 'reason', 500);
-  const config = (await db.doc('_socialControl/config').get()).data() || {};
-  if (approve && config.publication !== true)
-    throw new HttpsError(
-      'failed-precondition',
-      'Publication is disabled. Complete the launch checklist before enabling it.',
-    );
-  await db.runTransaction(async (tx) => {
-    const ref = db.doc(`_moderation/${id}`),
-      m = (await tx.get(ref)).data();
-    if (!m || m.status !== 'pending') return;
-    const draftRef = db.doc(
-        `${m.kind === 'post' ? '_postDrafts' : m.kind === 'comment' ? '_postComments' : '_textSubmissions'}/${m.targetId}`,
-      ),
-      draft = await tx.get(draftRef),
-      p = draft.data();
-    if (!p || p.status !== 'pending' || (m.version && p.version !== m.version))
-      throw new HttpsError('failed-precondition', 'Submission changed. Refresh the queue.');
-    const account = await tx.get(db.doc(`_socialAccounts/${p.uid}`));
-    if (approve && (account.data()?.suspended || account.data()?.deleting))
-      throw new HttpsError('failed-precondition', 'Account is suspended or being deleted.');
-    if (m.kind === 'post') {
-      const publicRef = db.doc(`posts/${m.targetId}`),
-        old = await tx.get(publicRef);
-      if (approve) {
-        const content = { ...normalizePost(p), attachment: p.attachment || null };
-        tx.set(publicRef, {
-          ...content,
-          uid: p.uid,
-          version: p.version,
-          status: 'published',
-          publishedAt: old.data()?.publishedAt || FieldValue.serverTimestamp(),
-          updatedAt: FieldValue.serverTimestamp(),
-          likeCount: old.data()?.likeCount || 0,
-          commentCount: old.data()?.commentCount || 0,
-        });
-      }
-      tx.update(draftRef, {
-        status: approve ? 'published' : 'rejected',
-        reason,
-        updatedAt: FieldValue.serverTimestamp(),
-      });
-    } else if (m.kind === 'comment') {
-      const postRef = db.doc(`posts/${p.postId}`),
-        post = await tx.get(postRef);
-      if (approve && post.data()?.status !== 'published')
-        throw new HttpsError('failed-precondition', 'Post no longer available.');
-      if (approve) {
-        const author = post.data()!.uid;
-        const restrictions = await tx.getAll(
-          db.doc(`_socialBlocks/${hash(`${p.uid}:${author}`)}`),
-          db.doc(`_socialBlocks/${hash(`${author}:${p.uid}`)}`),
-          db.doc(`_socialAccounts/${author}`),
-        );
-        if (
-          restrictions[0].exists ||
-          restrictions[1].exists ||
-          restrictions[2].data()?.suspended ||
-          restrictions[2].data()?.deleting
-        )
-          throw new HttpsError('failed-precondition', 'This conversation is no longer available.');
-      }
-      tx.update(draftRef, { status: approve ? 'approved' : 'rejected', reason });
-      if (approve) tx.update(postRef, { commentCount: (post.data()!.commentCount || 0) + 1 });
-    } else {
-      const target = db.doc(p.targetPath),
-        existing = await tx.get(target);
-      if (approve && !existing.exists && p.kind !== 'trackComment')
-        throw new HttpsError('failed-precondition', 'Content no longer exists.');
-      const userRef = db.doc(`users/${p.uid}`),
-        user = await tx.get(userRef);
-      const photo = p.photoMediaId ? await tx.get(db.doc(`_socialMedia/${p.photoMediaId}`)) : null;
-      if (approve && p.photoMediaId && photo?.data()?.status !== 'ready')
-        throw new HttpsError('failed-precondition', 'Wait for the photo to finish processing.');
-      if (approve) {
-        if (p.kind === 'review') {
-          const countField = p.targetPath.startsWith('releaseRatings/')
-            ? 'releaseReviewCount'
-            : 'reviewCount';
-          if (existing.data()?.pendingReviewVersion !== p.version)
-            throw new HttpsError('failed-precondition', 'Review changed.');
-          tx.update(target, {
-            review: p.body,
-            pendingReviewVersion: FieldValue.delete(),
-            updatedAt: FieldValue.serverTimestamp(),
-          });
-          tx.update(userRef, {
-            [countField]:
-              (user.data()?.[countField] || 0) +
-              Number(!!p.body) -
-              Number(!!existing.data()?.review),
-          });
-        } else if (p.kind === 'trackComment')
-          tx.set(target, { uid: p.uid, body: p.body, createdAt: FieldValue.serverTimestamp() });
-        else
-          tx.update(target, {
-            ...p.fields,
-            ...(p.photoMediaId ? { avatarMediaId: p.photoMediaId, avatarUrl: '' } : {}),
-          });
-      }
-      tx.update(draftRef, { status: approve ? 'approved' : 'rejected', reason });
-    }
-    tx.update(ref, {
-      status: approve ? 'approved' : 'rejected',
-      reason,
-      moderator: r.auth!.uid,
-      decidedAt: FieldValue.serverTimestamp(),
-    });
-    touchSocial(tx, p.uid);
-  });
   return { ok: true };
 });
 export const resolveSocialReport = onCall(async (r) => {

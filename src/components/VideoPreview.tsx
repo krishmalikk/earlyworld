@@ -2,7 +2,7 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect } from 'react';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useForeground } from '../data/listeners';
-export function ModerationVideo({ uri }: { uri: string }) {
+export function VideoPreview({ uri }: { uri: string }) {
   const player = useVideoPlayer(uri),
     active = useForeground();
   useEffect(() => {
