@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import type { SocialPost, CatalogAttachment } from '../../shared/social';
 import { fontSize, radius, space } from '../../shared/theme';
-import { Artwork, Button, c, ErrorLine, s } from './ui';
+import { Artwork, c, ErrorLine, s } from './ui';
 import { socialMutation, useSocial } from '../data/social';
 import { errorMessage } from '../lib/firebase';
 import { useLocal } from '../state/local';
@@ -146,11 +146,6 @@ export function PostCard({
             </Pressable>
           ))}
         </View>
-      ) : null}
-      {post.attachment ? (
-        <Button quiet onPress={() => openAttachment(post.attachment!)}>
-          {post.attachment.label || 'View attached music'} ↗
-        </Button>
       ) : null}
       {post.scenes.length ? (
         <Text style={s.link}>{post.scenes.map((s) => `#${s}`).join('  ')}</Text>

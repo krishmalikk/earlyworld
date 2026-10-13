@@ -352,11 +352,16 @@ export function Segmented<T extends string>({
   value,
   onChange,
   subtle = false,
+  compact = false,
+  style,
 }: {
   options: readonly { value: T; label: string }[];
   value: T;
   onChange: (value: T) => void;
   subtle?: boolean;
+  /** Shorter pills for headers. */
+  compact?: boolean;
+  style?: StyleProp<ViewStyle>;
 }) {
   const [width, setWidth] = useState(0);
   const index = Math.max(
@@ -369,7 +374,7 @@ export function Segmented<T extends string>({
   return (
     <View
       accessibilityRole="tablist"
-      style={[segmented.track, subtle && { backgroundColor: c.bg }]}
+      style={[segmented.track, subtle && { backgroundColor: c.bg }, style]}
       onLayout={(e) => setWidth(e.nativeEvent.layout.width - space[4] * 2 - 2)}
     >
       {width ? (
@@ -387,13 +392,14 @@ export function Segmented<T extends string>({
           accessibilityRole="tab"
           accessibilityState={{ selected: i === index }}
           onPress={() => onChange(o.value)}
-          style={segmented.tab}
+          style={[segmented.tab, compact && segmented.compactTab]}
         >
           <Text
             style={[
               segmented.label,
               { color: i === index ? (subtle ? c.text : c.bg) : c.muted },
-              subtle && i === index && { fontWeight: fontWeight.bold },
+              compact && { fontSize: fontSize.label },
+              (subtle || compact) && i === index && { fontWeight: fontWeight.bold },
             ]}
           >
             {o.label}
@@ -420,5 +426,6 @@ const segmented = StyleSheet.create({
     borderRadius: radius.pill,
   },
   tab: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center' },
+  compactTab: { minHeight: 28, paddingHorizontal: space[10] },
   label: { fontSize: fontSize.navigation, fontWeight: fontWeight.medium },
 });

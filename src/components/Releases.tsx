@@ -140,6 +140,24 @@ export function ArtistReleases({ artistId }: { artistId: string }) {
   );
 }
 
+/** A release review in the feed: who wrote it, the release, the stars and the text. */
+export function ReleaseRatingCard({ rating }: { rating: ReleaseRating }) {
+  const catalog = useCatalogIds('releases', [rating.releaseId]);
+  const release = catalog.byId.get(rating.releaseId);
+  return (
+    <View style={s.panel}>
+      <UserLine uid={rating.uid} />
+      {release ? <ReleaseCard release={release} /> : null}
+      <Stars value={rating.halfStars} />
+      {rating.review ? (
+        <Text numberOfLines={6} style={s.text}>
+          {rating.review}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
 export function ReleaseReviews({
   releaseId,
   uid,
