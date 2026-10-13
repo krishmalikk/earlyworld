@@ -82,15 +82,6 @@ export default function Settings() {
           Retry account status
         </Button>
       ) : null}
-      {status.data?.admin ? (
-        <SettingsGroup title="Moderation">
-          <SettingsRow
-            icon="shield-outline"
-            label="Moderation queue"
-            onPress={() => router.push('/moderation')}
-          />
-        </SettingsGroup>
-      ) : null}
       <ActionFeedback {...action} />
       <Button quiet busy={action.busy} onPress={() => void action.run(() => signOut(auth))}>
         Sign out

@@ -207,7 +207,7 @@ export default function TrackDetail() {
           .map((p) => (
             <View key={p.id} style={s.panel}>
               <Text style={s.muted}>
-                {p.status === 'pending' ? 'Awaiting review' : p.reason || 'Not approved'}
+                {p.status === 'pending' ? 'Posting…' : p.reason || 'Not posted'}
               </Text>
               <Text style={s.text}>{p.body}</Text>
             </View>

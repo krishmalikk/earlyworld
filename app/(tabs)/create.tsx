@@ -1,5 +1,5 @@
 import { socialEvent } from '../../src/data/social-telemetry';
-import { ModerationVideo } from '../../src/components/ModerationVideo';
+import { VideoPreview } from '../../src/components/VideoPreview';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -232,10 +232,8 @@ function Composer({ uid }: { uid: string }) {
         setDraft(emptyPostDraft());
         setPreview(false);
         changed();
-        Alert.alert(
-          result.status === 'processing' ? 'Processing your media' : 'Awaiting review',
-          'Your submission will appear after moderator approval.',
-        );
+        if (result.status === 'processing')
+          Alert.alert('Processing your media', 'Your post appears as soon as processing finishes.');
         router.push({ pathname: '/posts', params: { mode: 'own' } });
       }
     } catch (e) {
@@ -288,7 +286,7 @@ function Composer({ uid }: { uid: string }) {
             file.kind === 'photo' ? (
               <Artwork key={file.id} uri={file.uri} name="Photo preview" size={220} />
             ) : (
-              <ModerationVideo key={file.id} uri={file.uri} />
+              <VideoPreview key={file.id} uri={file.uri} />
             ),
           )}
           {draft.attachment ? <Text style={s.link}>{draft.attachment.label}</Text> : null}

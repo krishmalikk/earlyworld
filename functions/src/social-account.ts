@@ -4,6 +4,7 @@ import { getAuth } from 'firebase-admin/auth';
 import { getStorage } from 'firebase-admin/storage';
 import { db, FieldValue, hash, authUid, rateLimit } from './core';
 import { socialContext, socialId, quota, Timestamp } from './social-core';
+import { publishSubmission } from './social-publish';
 export const requestAccountDeletion = onCall(async (r) => {
   const uid = authUid(r);
   const authenticated = Number(r.auth?.token.auth_time || 0) * 1000;
@@ -190,16 +191,8 @@ export const submitProfileText = onCall(async (r) => {
       version,
       createdAt: FieldValue.serverTimestamp(),
     });
-    tx.set(db.doc(`_moderation/text_${id}`), {
-      uid,
-      kind: 'text',
-      targetId: id,
-      version,
-      status: 'pending',
-      createdAt: FieldValue.serverTimestamp(),
-    });
   });
-  return { status: 'pending' };
+  return { status: (await publishSubmission('text', id)) ? 'approved' : 'pending' };
 });
 export const submitTrackComment = onCall(async (r) => {
   const { uid } = await socialContext(r, true);
@@ -230,15 +223,8 @@ export const submitTrackComment = onCall(async (r) => {
       status: 'pending',
       createdAt: FieldValue.serverTimestamp(),
     });
-    tx.set(db.doc(`_moderation/text_${id}`), {
-      uid,
-      kind: 'text',
-      targetId: id,
-      status: 'pending',
-      createdAt: FieldValue.serverTimestamp(),
-    });
   });
-  return { status: 'pending' };
+  return { status: (await publishSubmission('text', id)) ? 'approved' : 'pending' };
 });
 
 export const authorizeProfilePhoto = onCall(async (r) => {
@@ -327,14 +313,7 @@ export const reserveCommunityUsername = onCall(async (r) => {
       status: 'pending',
       createdAt: FieldValue.serverTimestamp(),
     });
-    tx.set(db.doc(`_moderation/text_${id}`), {
-      uid,
-      kind: 'text',
-      targetId: id,
-      version,
-      status: 'pending',
-      createdAt: FieldValue.serverTimestamp(),
-    });
   });
-  return { status: 'pending' };
+  await publishSubmission('text', hash(`profile:${uid}`));
+  return { status: 'approved' };
 });

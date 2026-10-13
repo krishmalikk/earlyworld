@@ -116,9 +116,8 @@ export default function Auth() {
                 />
                 <Text style={s.muted}>
                   Be respectful. Share only content you have permission to post. No harassment,
-                  sexual content, exploitation, or private information. Posts are reviewed before
-                  publication. Age eligibility is private; we do not collect your location or
-                  contacts.
+                  sexual content, exploitation, or private information. Age eligibility is private;
+                  we do not collect your location or contacts.
                 </Text>
                 <Button quiet onPress={() => router.push('/community')}>
                   Read community rules & privacy terms

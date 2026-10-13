@@ -70,6 +70,18 @@ export type User = {
   onboardingStep: number;
   scenes: string[];
 };
+/** The owner's own text and profile submissions, from `readCommunity`. Pending ones are still processing. */
+export type TextSubmission = {
+  id: string;
+  kind: string;
+  status: string;
+  reason?: string;
+  body?: string;
+  fields?: { bio?: string };
+  photoMediaId?: string | null;
+  /** Short-lived preview of a pending profile photo once processed. */
+  photoUrl?: string;
+};
 export type Save = {
   id: string;
   trackId: string;

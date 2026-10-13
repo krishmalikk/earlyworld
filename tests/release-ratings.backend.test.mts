@@ -2,22 +2,14 @@ import { test, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 process.env.GCLOUD_PROJECT = 'demo-earlyworld-release-ratings';
 if (!process.env.FIRESTORE_EMULATOR_HOST) throw Error('Use the isolated Firestore test emulator.');
-const { db, Timestamp, hash } = await import('../functions/src/core.ts');
+const { db, Timestamp } = await import('../functions/src/core.ts');
 const { setReleaseRating, deleteReleaseRating, setFavoriteReleases, ratingId } =
   await import('../functions/src/ratings.ts');
-const { moderateSocialContent } = await import('../functions/src/social.ts');
 const request = (uid: string, data: unknown) =>
   ({ auth: { uid, token: { email_verified: true } }, data }) as any;
-// These aggregate regression scenarios explicitly approve submitted text.
-const set = async (halfStars = 8, review = '', uid = 'alice', releaseId = 't') => {
-  const result = await setReleaseRating.run(request(uid, { releaseId, halfStars, review }));
-  if (result.reviewPending)
-    await moderateSocialContent.run({
-      auth: { uid: 'moderator', token: { admin: true } },
-      data: { id: `text_${hash(`review:releaseRatings:${uid}:${releaseId}`)}`, approve: true },
-    } as any);
-  return result;
-};
+// Written reviews publish immediately.
+const set = (halfStars = 8, review = '', uid = 'alice', releaseId = 't') =>
+  setReleaseRating.run(request(uid, { releaseId, halfStars, review }));
 const remove = (uid = 'alice', releaseId = 't') =>
   deleteReleaseRating.run(request(uid, { releaseId }));
 const favorites = (releaseIds: unknown, uid = 'alice') =>

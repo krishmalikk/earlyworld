@@ -41,7 +41,10 @@ function Detail({ id }: { id: string }) {
       .catch((e) => {
         if (generation.current === run) {
           setError(errorMessage(e));
-          if (/not-found|permission-denied/.test(String(e?.code))) {setPost(null);setComments([]);}
+          if (/not-found|permission-denied/.test(String(e?.code))) {
+            setPost(null);
+            setComments([]);
+          }
         }
       });
     return () => {
@@ -75,7 +78,7 @@ function Detail({ id }: { id: string }) {
                 <Text style={s.text}>{c.body}</Text>
                 {c.status !== 'approved' ? (
                   <Text style={s.muted}>
-                    {c.status === 'pending' ? 'Awaiting review' : c.reason || 'Not approved'}
+                    {c.status === 'pending' ? 'Posting…' : c.reason || 'Not posted'}
                   </Text>
                 ) : null}
                 {c.uid === uid ? (

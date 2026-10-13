@@ -17,8 +17,6 @@ const save = (id = 'one', text = 'A discovery', uid = 'alice') =>
   api.savePostDraft.run(req(uid, { id, content: content(text) }));
 const submit = (id = 'one', uid = 'alice') =>
   api.submitPost.run(req(uid, { id, rightsConfirmed: true }));
-const approve = (id = 'one') =>
-  api.moderateSocialContent.run(req('mod', { id: `post_${id}`, approve: true }, true));
 beforeEach(async () => {
   await fetch(
     `http://${process.env.FIRESTORE_EMULATOR_HOST}/emulator/v1/projects/demo-earlyworld-social/databases/(default)/documents`,
@@ -80,34 +78,26 @@ test('bookmarks paginate by bookmark time and do not scan only recent public pos
   assert.equal(first.items[0].id, 'archive26');
   assert.equal(new Set([...first.items, ...second.items].map((p) => p.id)).size, 27);
 });
-test('blocking after comment submission prevents moderation from publishing the interaction', async () => {
+test('blocked listeners cannot comment across the block', async () => {
   await save();
   await submit();
-  await approve();
-  const comment = await api.createPostComment.run(
-    req('bob', { postId: 'one', requestId: 'blockedcomment', body: 'A comment' }),
-  );
   await api.setUserBlock.run(req('alice', { uid: 'bob', blocked: true }));
   await assert.rejects(
-    api.moderateSocialContent.run(req('mod', { id: `comment_${comment.id}`, approve: true }, true)),
-    { code: 'failed-precondition' },
+    api.createPostComment.run(
+      req('bob', { postId: 'one', requestId: 'blockedcomment', body: 'A comment' }),
+    ),
+    { code: 'not-found' },
   );
   assert.equal((await api.getPost.run(req('alice', { id: 'one' }))).commentCount, 0);
 });
-test('private submission, approval, repeat approval and revision preserve publication identity', async () => {
+test('submission publishes immediately and revisions preserve publication identity', async () => {
   await save();
-  await submit();
-  await assert.rejects(api.getPost.run(req('bob', { id: 'one' })), { code: 'not-found' });
-  assert.equal((await api.listPosts.run(req('bob'))).items.length, 0);
-  await approve();
+  assert.equal((await submit()).status, 'published');
   const p = await api.getPost.run(req('bob', { id: 'one' }));
   assert.equal(p.text, 'A discovery');
   assert.equal('reason' in p, false);
-  await approve();
   await save('one', 'Edited');
   await submit();
-  assert.equal((await api.getPost.run(req('bob', { id: 'one' }))).text, 'A discovery');
-  await approve();
   const edited = await api.getPost.run(req('bob', { id: 'one' }));
   assert.equal(edited.text, 'Edited');
   assert.equal(edited.publishedAt, p.publishedAt);
@@ -116,10 +106,6 @@ test('ownership, verified email, eligibility and creation flags are enforced', a
   await save();
   await assert.rejects(save('one', 'Hijack', 'bob'), { code: 'permission-denied' });
   await assert.rejects(submit('one', 'bob'), { code: 'not-found' });
-  await assert.rejects(
-    api.moderateSocialContent.run(req('bob', { id: 'post_one', approve: true })),
-    { code: 'permission-denied' },
-  );
   await assert.rejects(
     api.savePostDraft.run({
       auth: { uid: 'alice', token: { email_verified: false } },
@@ -155,7 +141,6 @@ test('blank posts, invalid attachments and foreign media are rejected', async ()
 test('concurrent likes are idempotent and independent bookmarks remain private', async () => {
   await save();
   await submit();
-  await approve();
   await Promise.all(
     Array.from({ length: 5 }, () =>
       api.setPostInteraction.run(req('bob', { id: 'one', kind: 'like', active: true })),
@@ -168,20 +153,17 @@ test('concurrent likes are idempotent and independent bookmarks remain private',
   await api.setPostInteraction.run(req('bob', { id: 'one', kind: 'like', active: false }));
   assert.equal((await api.getPost.run(req('alice', { id: 'one' }))).likeCount, 0);
 });
-test('comments stay private until review and repeat approval/deletion does not drift counts', async () => {
+test('comments publish immediately and repeat requests/deletion do not drift counts', async () => {
   await save();
   await submit();
-  await approve();
   const c = await api.createPostComment.run(
     req('bob', { postId: 'one', requestId: 'comment1', body: 'Nice find' }),
   );
   await api.createPostComment.run(
     req('bob', { postId: 'one', requestId: 'comment1', body: 'Nice find' }),
   );
-  assert.equal((await api.listPostComments.run(req('alice', { postId: 'one' }))).items.length, 0);
-  assert.equal((await api.listPostComments.run(req('bob', { postId: 'one' }))).items.length, 1);
-  await api.moderateSocialContent.run(req('mod', { id: `comment_${c.id}`, approve: true }, true));
-  await api.moderateSocialContent.run(req('mod', { id: `comment_${c.id}`, approve: true }, true));
+  assert.equal(c.status, 'approved');
+  assert.equal((await api.listPostComments.run(req('alice', { postId: 'one' }))).items.length, 1);
   assert.equal((await api.getPost.run(req('alice', { id: 'one' }))).commentCount, 1);
   await api.deleteSocialContent.run(req('bob', { id: c.id, kind: 'comment' }));
   await api.deleteSocialContent.run(req('bob', { id: c.id, kind: 'comment' }));
@@ -190,7 +172,6 @@ test('comments stay private until review and repeat approval/deletion does not d
 test('blocking works in both directions including post detail and interactions', async () => {
   await save();
   await submit();
-  await approve();
   await api.setUserBlock.run(req('bob', { uid: 'alice', blocked: true }));
   await assert.rejects(api.getPost.run(req('bob', { id: 'one' })), { code: 'not-found' });
   assert.equal(
@@ -204,15 +185,14 @@ test('blocking works in both directions including post detail and interactions',
   await api.setUserBlock.run(req('bob', { uid: 'alice', blocked: false }));
   assert.equal((await api.getPost.run(req('bob', { id: 'one' }))).uid, 'alice');
 });
-test('deleting during moderation cannot resurrect a post', async () => {
+test('deleting a published post cannot resurrect it', async () => {
   await save();
   await submit();
   await api.deleteSocialContent.run(req('alice', { id: 'one', kind: 'post' }));
-  await approve();
   await assert.rejects(api.getPost.run(req('alice', { id: 'one' })), { code: 'not-found' });
   await assert.rejects(save(), { code: 'failed-precondition' });
 });
-test('25-item pagination has no duplicates and publication gate fails closed', async () => {
+test('25-item pagination has no duplicates', async () => {
   for (let i = 0; i < 27; i++)
     await db.doc(`posts/p${i.toString().padStart(2, '0')}`).set({
       ...content(),
@@ -227,10 +207,6 @@ test('25-item pagination has no duplicates and publication gate fails closed', a
   assert.equal(a.items.length, 25);
   assert.equal(b.items.length, 2);
   assert.equal(new Set([...a.items, ...b.items].map((p) => p.id)).size, 27);
-  await save();
-  await submit();
-  await db.doc('_socialControl/config').update({ publication: false });
-  await assert.rejects(approve(), { code: 'failed-precondition' });
 });
 test('identical submission retries count only once against the daily limit', async () => {
   await save();
@@ -251,16 +227,13 @@ test('US 13+ eligibility stores an age band instead of exact age', async () => {
   assert.equal(account.ageBand, '13-17');
   assert.equal('age' in account, false);
 });
-test('saving and submitting identical pending content is a no-op, including after approval', async () => {
-  await save();
-  await submit();
-  const version = (await db.doc('_postDrafts/one').get()).data()!.version;
-  await save();
-  await submit();
-  assert.equal((await db.doc('_postDrafts/one').get()).data()!.version, version);
-  await approve();
+test('saving and submitting identical published content is a no-op', async () => {
   await save();
   assert.equal((await submit()).status, 'published');
+  const version = (await db.doc('_postDrafts/one').get()).data()!.version;
+  await save();
+  assert.equal((await submit()).status, 'published');
+  assert.equal((await db.doc('_postDrafts/one').get()).data()!.version, version);
   const q = await db.collection('_socialQuotas').get();
   assert.equal(
     q.docs.reduce((n, d) => n + d.data().count, 0),
@@ -270,57 +243,26 @@ test('saving and submitting identical pending content is a no-op, including afte
 test('reports distinguish the reporter from the reported account', async () => {
   await save();
   await submit();
-  await approve();
   await api.reportSocialContent.run(
     req('bob', { kind: 'post', id: 'one', reason: 'Rights concern' }),
   );
-  const queue = await api.listModeration.run(req('mod', { reports: true }, true));
-  assert.equal(queue.items[0].uid, 'bob');
-  assert.equal(queue.items[0].subjectUid, 'alice');
+  const [report] = (await db.collection('_socialReports').get()).docs.map((d) => d.data());
+  assert.equal(report.uid, 'bob');
+  assert.equal(report.subjectUid, 'alice');
 });
-test('review text is private until approved; scores update immediately and revisions keep old text', async () => {
+test('review text publishes immediately; revisions replace it and counts stay exact', async () => {
   const { setTrackRating, ratingId } = await import('../functions/src/ratings.ts');
-  const { hash } = await import('../functions/src/core.ts');
   await db.doc('tracks/t').set({ title: 'Track' });
   const set = (review: string, halfStars = 8) =>
     setTrackRating.run(req('alice', { trackId: 't', halfStars, review }));
-  const approveReview = () =>
-    api.moderateSocialContent.run(
-      req('mod', { id: `text_${hash('review:ratings:alice:t')}`, approve: true }, true),
-    );
-  await set('First take');
-  const { readCommunity } = await import('../functions/src/social-reads.ts');
-  const revisions = db.batch();
-  for (let i = 0; i < 30; i++)
-    revisions.set(db.doc(`_textSubmissions/newer${i}`), {
-      uid: 'alice',
-      kind: 'review',
-      body: 'Other draft',
-      createdAt: new Date(Date.now() + i),
-    });
-  await revisions.commit();
-  const ownDraft = await readCommunity.run(req('alice', { kind: 'reviewSubmission', itemId: 't' }));
-  assert.equal(ownDraft.items[0].body, 'First take');
-  assert.equal(
-    (await readCommunity.run(req('bob', { kind: 'reviewSubmission', itemId: 't', uid: 'alice' })))
-      .items.length,
-    0,
-  );
-  let rating = (await db.doc(`ratings/${ratingId('alice', 't')}`).get()).data()!;
-  assert.equal(rating.halfStars, 8);
-  assert.equal(rating.review, '');
-  await approveReview();
-  await approveReview();
+  const rating = async () => (await db.doc(`ratings/${ratingId('alice', 't')}`).get()).data()!;
+  assert.equal((await set('First take')).reviewPending, false);
+  assert.equal((await rating()).review, 'First take');
   assert.equal((await db.doc('users/alice').get()).data()!.reviewCount, 1);
   await set('New take', 6);
-  rating = (await db.doc(`ratings/${ratingId('alice', 't')}`).get()).data()!;
-  assert.equal(rating.review, 'First take');
-  assert.equal(rating.halfStars, 6);
-  await approveReview();
-  assert.equal(
-    (await db.doc(`ratings/${ratingId('alice', 't')}`).get()).data()!.review,
-    'New take',
-  );
+  assert.equal((await rating()).review, 'New take');
+  assert.equal((await rating()).halfStars, 6);
+  assert.equal((await db.doc('users/alice').get()).data()!.reviewCount, 1);
   await set('');
   assert.equal((await db.doc('users/alice').get()).data()!.reviewCount, 0);
 });
@@ -372,7 +314,7 @@ test('account deletion batches reconcile authored ratings, comments and outgoing
   assert.equal(post.commentCount, 0);
 });
 
-test('username reservations are exclusive and stay private until a moderator approves', async () => {
+test('username reservations are exclusive and publish immediately', async () => {
   const { reserveCommunityUsername, submitProfileText } =
     await import('../functions/src/social-account.ts');
   await db.doc('users/alice').update({ username: '', usernameLower: '', onboardingStep: 1 });
@@ -380,13 +322,32 @@ test('username reservations are exclusive and stay private until a moderator app
   await assert.rejects(reserveCommunityUsername.run(req('bob', { username: 'early' })), {
     code: 'already-exists',
   });
-  assert.equal((await db.doc('users/alice').get()).data()!.username, '');
-  await submitProfileText.run(req('alice', { bio: 'Music discoveries' }));
-  const { hash } = await import('../functions/src/core.ts');
-  await api.moderateSocialContent.run(
-    req('mod', { id: `text_${hash('profile:alice')}`, approve: true }, true),
-  );
   assert.equal((await db.doc('users/alice').get()).data()!.username, 'early');
+  await submitProfileText.run(req('alice', { bio: 'Music discoveries' }));
+  const user = (await db.doc('users/alice').get()).data()!;
+  assert.equal(user.username, 'early');
+  assert.equal(user.bio, 'Music discoveries');
+});
+
+test('a profile photo publishes with its bio once processing finishes', async () => {
+  const { submitProfileText } = await import('../functions/src/social-account.ts');
+  const { advancePost } = await import('../functions/src/social-media.ts');
+  await db.doc('_socialMedia/photo1').set({
+    uid: 'alice',
+    postId: 'profile_alice',
+    kind: 'photo',
+    status: 'processing',
+  });
+  const result = await submitProfileText.run(
+    req('alice', { bio: 'New bio', photoMediaId: 'photo1' }),
+  );
+  assert.equal(result.status, 'pending');
+  assert.equal((await db.doc('users/alice').get()).data()!.bio, undefined);
+  await db.doc('_socialMedia/photo1').update({ status: 'ready' });
+  await advancePost('profile_alice');
+  const user = (await db.doc('users/alice').get()).data()!;
+  assert.equal(user.bio, 'New bio');
+  assert.equal(user.avatarMediaId, 'photo1');
 });
 
 test('blocked listener management paginates, returns only published identity, and stays owner scoped', async () => {

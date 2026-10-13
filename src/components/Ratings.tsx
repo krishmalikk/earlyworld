@@ -68,7 +68,7 @@ export function RatingEditor({
     setBusy(true);
     setError(null);
     try {
-      const result = await ratingMutation(
+      await ratingMutation(
         kind === 'release'
           ? remove
             ? 'deleteReleaseRating'
@@ -82,8 +82,6 @@ export function RatingEditor({
         },
       );
       setOpen(false);
-      if (result.reviewPending)
-        Alert.alert('Rating saved', 'Your review is awaiting moderator approval.');
     } catch (e) {
       setError(`Could not save your change. ${errorMessage(e)}`);
     } finally {
@@ -128,8 +126,8 @@ export function RatingEditor({
       {revision ? (
         <Text style={s.muted}>
           {revision.status === 'pending'
-            ? 'Your review is awaiting approval.'
-            : revision.reason || 'Your review was not approved.'}
+            ? 'Publishing your review…'
+            : revision.reason || 'Your review could not be published.'}
         </Text>
       ) : null}
       <ErrorLine message={loadError} />
@@ -220,9 +218,7 @@ export function RatingEditor({
                   onChangeText={setReview}
                   style={{ minHeight: 130, textAlignVertical: 'top' }}
                 />
-                <Text style={s.muted}>
-                  {review.length}/500 · Reviews are approved before publication
-                </Text>
+                <Text style={s.muted}>{review.length}/500</Text>
                 {review ? (
                   <Button quiet disabled={busy} onPress={() => setReview('')}>
                     Clear review text

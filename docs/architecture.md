@@ -54,7 +54,7 @@ All unspecified paths are denied by Firestore rules. Rotation collection-group r
 
 ## October 1 social implementation
 
-The posts/video implementation supersedes the earlier community-read and avatar-write descriptions above. Cross-account profiles, reviews, discussions, activity and Rotation leaderboards now use authenticated server-authorized pages, invalidated through small subscription-backed state documents. This enforces blocking and suspension across alternate detail routes. Direct profile text/avatar publication is denied; username reservations and profile revisions use server APIs and moderation. Owner saves, ratings and follows retain their account-scoped subscriptions.
+The posts/video implementation supersedes the earlier community-read and avatar-write descriptions above. Cross-account profiles, reviews, discussions, activity and Rotation leaderboards now use authenticated server-authorized pages, invalidated through small subscription-backed state documents. This enforces blocking and suspension across alternate detail routes. Direct profile text/avatar publication is denied; username reservations and profile revisions use server APIs and publish immediately (see [posts and videos](posts-and-videos.md#october-12-publishing-without-review)). Owner saves, ratings and follows retain their account-scoped subscriptions.
 
 Catalog tracks remain metadata-only. Playback is limited to user-uploaded, approved short videos through Expo Video. Original uploads and processed media remain private in Storage, with authorized processed URLs expiring after five minutes. See [posts and videos](posts-and-videos.md) for ownership, rollout flags, deployment blockers and validation status.
 
