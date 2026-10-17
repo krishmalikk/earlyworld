@@ -93,6 +93,8 @@ export function useRecapCard(uid: string | null) {
   return {
     loading: saves.loading,
     error: saves.error,
+    /** The card's track, so a posted card can link it. */
+    trackId: pick?.save.trackId,
     data:
       pick && save && user
         ? {
@@ -129,6 +131,7 @@ export function useReviewCard(uid: string | null, trackId?: string) {
       : '';
   return {
     loading: loading || (!!id && !track),
+    trackId: id,
     data:
       rating?.review && track && user
         ? {

@@ -5,7 +5,7 @@ import { call, errorMessage } from '../../src/lib/firebase';
 import { useLocal } from '../../src/state/local';
 import { useSocial } from '../../src/data/social';
 import type { SocialPost, SocialComment } from '../../shared/social';
-import { newPostId } from '../../src/data/post-drafts';
+import { newPostId } from '../../src/data/post-composer';
 import { PostCard } from '../../src/components/PostCard';
 import { Button, ErrorLine, Field, Page, s, Section } from '../../src/components/ui';
 export default function PostDetail() {

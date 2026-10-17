@@ -184,8 +184,6 @@ export const authorizePostUpload = onCall(async (r) => {
 export const submitPost = onCall(async (r) => {
   const { uid } = await socialContext(r, true),
     id = socialId(r.data?.id);
-  if (r.data?.rightsConfirmed !== true)
-    throw new HttpsError('invalid-argument', 'Confirm you have permission to share this content.');
   const result = await db.runTransaction(async (tx) => {
     const ref = db.doc(`_postDrafts/${id}`),
       d = await tx.get(ref),
@@ -217,7 +215,6 @@ export const submitPost = onCall(async (r) => {
     charge();
     tx.update(ref, {
       status,
-      rightsConfirmedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     });
     touchSocial(tx, uid);

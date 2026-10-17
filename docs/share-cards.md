@@ -20,8 +20,9 @@ Only published reviews can be shared; pending review text stays private. Other p
 - **Export:** each card is a fixed 360×640 layout (`shared/share-cards.ts`, `src/components/share/`), captured with `react-native-view-shot` as a 1080×1920 PNG.
 - **Share:** opens the system share sheet (`expo-sharing`), which lists Instagram, Messages and other apps.
 - **Save to Photos:** uses `expo-media-library` with write-only access.
+- **Post to earlyworld:** closes the share sheet and opens Create with the card as the post's photo (a 1080×1920 PNG). Recap and Review cards also link their track; Orbit has no single track. If something is already being written, Create asks before replacing it. The post publishes once processing finishes, like any photo post. In the feed the card shows as a square; tapping the photo shows the whole card.
 - **Image loading:** capture waits until each card's artwork has loaded, up to four seconds. After that, missing art shows initials.
-- **Analytics:** a `share_card` event records only the card type and the action.
+- **Analytics:** a `share_card` event records only the card type and the action (`share`, `save` or `post`).
 
 ## Design
 

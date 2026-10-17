@@ -3,7 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { ref as storageRef, putFile } from '@react-native-firebase/storage';
 import { call, storage } from '../lib/firebase';
-import { newPostId } from './post-drafts';
+import { newPostId } from './post-composer';
 
 /** Square-cropped library photo, resized to a 512px JPEG. Null when cancelled. */
 export async function pickProfilePhoto() {

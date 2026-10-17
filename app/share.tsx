@@ -56,7 +56,7 @@ function Share({
   const card = useRef<View>(null);
   const [ready, setReady] = useState<Set<string>>(new Set()),
     [timedOut, setTimedOut] = useState(false),
-    [busy, setBusy] = useState<'share' | 'save' | null>(null),
+    [busy, setBusy] = useState<'share' | 'save' | 'post' | null>(null),
     [error, setError] = useState<string | null>(null);
   const { width, height } = useWindowDimensions();
   const scale = Math.min((width - space[40]) / CARD.width, (height * 0.62) / CARD.height, 1);
@@ -93,12 +93,28 @@ function Share({
       result: 'tmpfile',
     });
   }
-  async function act(action: 'share' | 'save') {
+  async function act(action: 'share' | 'save' | 'post') {
     setBusy(action);
     setError(null);
     try {
       const uri = await capture();
-      if (action === 'share') {
+      if (action === 'post') {
+        // Recap and Review are about one track; the post links it. Orbit has none.
+        const linked =
+          kind === 'recap'
+            ? { id: recap.trackId, title: recap.data?.title }
+            : kind === 'review'
+              ? { id: review.trackId, title: review.data?.title }
+              : null;
+        // Close the share sheet and land on the Create tab with the card.
+        router.dismissTo({
+          pathname: '/(tabs)/create',
+          params: {
+            cardUri: uri,
+            ...(linked?.id ? { cardTrackId: linked.id, cardTrackTitle: linked.title || '' } : {}),
+          },
+        });
+      } else if (action === 'share') {
         if (!(await Sharing.isAvailableAsync()))
           throw Error('Sharing is not available on this device.');
         await Sharing.shareAsync(uri, {
@@ -233,6 +249,15 @@ function Share({
         onPress={() => void act('share')}
       >
         Share
+      </Button>
+      <Button
+        quiet
+        disabled={!available || !imagesReady || !!busy}
+        busy={busy === 'post'}
+        busyLabel="Preparing post…"
+        onPress={() => void act('post')}
+      >
+        Post to earlyworld
       </Button>
       <Button
         quiet

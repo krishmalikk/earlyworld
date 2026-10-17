@@ -10,14 +10,12 @@ import { useLocal } from '../../src/state/local';
 import { call, errorMessage, storage } from '../../src/lib/firebase';
 import { useSocial, useSocialStatus } from '../../src/data/social';
 import {
-  clearLocalPostDraft,
-  emptyPostDraft,
-  keepDraftFile,
+  clearComposerFiles,
+  emptyPost,
+  keepComposerFile,
   newPostId,
-  readPostDraft,
-  saveLocalPostDraft,
-  type LocalPostDraft,
-} from '../../src/data/post-drafts';
+  type ComposerPost,
+} from '../../src/data/post-composer';
 import { useCatalogPage } from '../../src/data/catalog';
 import type { SocialPost, CatalogAttachment } from '../../shared/social';
 import { SOCIAL_LIMITS } from '../../shared/social';
@@ -39,10 +37,15 @@ export default function Create() {
   return uid ? <Composer key={uid} uid={uid} /> : null;
 }
 function Composer({ uid }: { uid: string }) {
-  const { edit } = useLocalSearchParams<{ edit?: string }>(),
+  const { edit, cardUri, cardTrackId, cardTrackTitle } = useLocalSearchParams<{
+      edit?: string;
+      cardUri?: string;
+      cardTrackId?: string;
+      cardTrackTitle?: string;
+    }>(),
     status = useSocialStatus(),
     { changed } = useSocial();
-  const [draft, setDraft] = useState<LocalPostDraft>(emptyPostDraft),
+  const [draft, setDraft] = useState<ComposerPost>(emptyPost),
     [ready, setReady] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
@@ -53,8 +56,7 @@ function Composer({ uid }: { uid: string }) {
     [picking, setPicking] = useState(false);
   const task = useRef<ReturnType<typeof putFile> | null>(null),
     alive = useRef(true),
-    cancelled = useRef(false),
-    persist = useRef(Promise.resolve());
+    cancelled = useRef(false);
   const collection = {
     track: 'tracks',
     release: 'releases',
@@ -77,11 +79,6 @@ function Composer({ uid }: { uid: string }) {
       if (edit) {
         const post = await call<SocialPost>('getPost', { id: edit, own: true });
         if (post.uid !== uid) throw Error('This is not your post.');
-        const local = await readPostDraft(uid);
-        if (live && local?.id === post.id && !post.publishedAt) {
-          setDraft(local);
-          return;
-        }
         if (live)
           setDraft({
             id: post.id,
@@ -98,13 +95,9 @@ function Composer({ uid }: { uid: string }) {
               bytes: 0,
               uploaded: true,
             })),
-            rights: true,
             editing: true,
             mediaLocked: !!post.publishedAt,
           });
-      } else {
-        const saved = await readPostDraft(uid);
-        if (live && saved) setDraft(saved);
       }
     })()
       .catch((e) => {
@@ -117,15 +110,54 @@ function Composer({ uid }: { uid: string }) {
       live = false;
     };
   }, [uid, edit]);
+  // A share card arrives as a captured image; it starts a fresh post with the card attached.
   useEffect(() => {
-    if (!ready) return;
-    persist.current = persist.current
-      .then(() => saveLocalPostDraft(uid, draft))
-      .catch(() => {
-        if (alive.current) setError('Could not save this draft on your device.');
-      });
-  }, [uid, draft, ready]);
-  function update(patch: Partial<LocalPostDraft>) {
+    if (!cardUri) return;
+    const start = async () => {
+      try {
+        const info = await FileSystem.getInfoAsync(cardUri);
+        if (!info.exists) throw Error('The card image is no longer available. Try again.');
+        const id = newPostId();
+        setDraft({
+          ...emptyPost(),
+          files: [
+            {
+              id,
+              uri: await keepComposerFile(cardUri, id),
+              kind: 'photo',
+              mime: 'image/png',
+              bytes: info.size,
+            },
+          ],
+          attachment: cardTrackId
+            ? { kind: 'track', id: cardTrackId, label: cardTrackTitle || 'Track' }
+            : null,
+        });
+        setPreview(false);
+      } catch (e) {
+        setError(errorMessage(e));
+      }
+    };
+    const consume = () => router.setParams({ cardUri: '', cardTrackId: '', cardTrackTitle: '' });
+    const writing = draft.text.trim() || draft.files.length || draft.attachment;
+    if (writing && !draft.editing)
+      Alert.alert('Replace what you’re writing?', 'Posting this card starts a new post.', [
+        { text: 'Keep writing', style: 'cancel', onPress: consume },
+        {
+          text: 'Replace',
+          style: 'destructive',
+          onPress: () => {
+            consume();
+            void start();
+          },
+        },
+      ]);
+    else {
+      consume();
+      void start();
+    }
+  }, [cardUri]);
+  function update(patch: Partial<ComposerPost>) {
     setDraft((d) => ({ ...d, ...patch }));
   }
   async function choose() {
@@ -151,7 +183,7 @@ function Composer({ uid }: { uid: string }) {
         const id = newPostId();
         files.push({
           id,
-          uri: await keepDraftFile(uid, asset.uri, id),
+          uri: await keepComposerFile(asset.uri, id),
           kind: video ? ('video' as const) : ('photo' as const),
           mime: asset.mimeType || (video ? 'video/mp4' : 'image/jpeg'),
           bytes,
@@ -179,7 +211,7 @@ function Composer({ uid }: { uid: string }) {
       await call('savePostDraft', { id: draft.id, content });
       const files = [...draft.files];
       for (let i = 0; i < files.length; i++) {
-        if (cancelled.current) throw Error('Upload cancelled. Your draft is saved.');
+        if (cancelled.current) throw Error('Upload cancelled.');
         const file = files[i];
         if (file.uploaded) continue;
         const ticket = await call<{ path: string; status: string }>('authorizePostUpload', {
@@ -211,10 +243,9 @@ function Composer({ uid }: { uid: string }) {
         await call('completePostUpload', { id: file.id });
         socialEvent('social_upload_complete');
         files[i] = { ...file, uploaded: true };
-        await saveLocalPostDraft(uid, { ...draft, files });
         if (alive.current) update({ files: [...files] });
       }
-      if (cancelled.current) throw Error('Submission cancelled. Your draft is saved.');
+      if (cancelled.current) throw Error('Submission cancelled.');
       await call('savePostDraft', {
         id: draft.id,
         content: {
@@ -224,17 +255,15 @@ function Composer({ uid }: { uid: string }) {
       });
       const result = await call<{ status: string }>('submitPost', {
         id: draft.id,
-        rightsConfirmed: draft.rights,
       });
-      await persist.current;
-      await clearLocalPostDraft(uid);
+      await clearComposerFiles().catch(() => undefined);
       if (alive.current) {
-        setDraft(emptyPostDraft());
+        setDraft(emptyPost());
         setPreview(false);
         changed();
         if (result.status === 'processing')
           Alert.alert('Processing your media', 'Your post appears as soon as processing finishes.');
-        router.push({ pathname: '/posts', params: { mode: 'own' } });
+        router.push('/(tabs)/profile');
       }
     } catch (e) {
       if (alive.current) setError(errorMessage(e));
@@ -264,18 +293,6 @@ function Composer({ uid }: { uid: string }) {
               }}
             />
           ))}
-        </View>
-      ) : null}
-      {!status.data?.eligible || !status.data?.creation ? (
-        <View style={s.panel}>
-          <Text style={s.text}>
-            {status.data?.creation
-              ? 'Join the community before publishing.'
-              : 'Creation is being prepared. You can save a draft now.'}
-          </Text>
-          <Button quiet onPress={() => router.push('/community')}>
-            Community access
-          </Button>
         </View>
       ) : null}
       <ErrorLine message={error || status.error} />
@@ -354,7 +371,7 @@ function Composer({ uid }: { uid: string }) {
         </Section>
       ) : (
         <Text style={s.muted}>
-          The published media stays the same. Text and link changes will be reviewed.
+          The published media stays the same. You can change the text, link and scenes.
         </Text>
       )}
       <Section title="Link to music">
@@ -431,23 +448,16 @@ function Composer({ uid }: { uid: string }) {
           ))}
         </ScrollView>
       </Section>
-      <Chip
-        label="I have permission to share this content"
-        selected={draft.rights}
-        onPress={() => {
-          if (!busy) update({ rights: !draft.rights });
-        }}
-      />
       <Button quiet onPress={() => setPreview(!preview)}>
         {preview ? 'Keep editing' : 'Preview post'}
       </Button>
       <Button
-        disabled={!ready || !draft.rights || !status.data?.creation || !status.data?.eligible}
+        disabled={!ready}
         busy={busy}
         busyLabel={progress || 'Submitting'}
         onPress={() => void submit()}
       >
-        Submit for review
+        Post
       </Button>
       {busy ? (
         <Button

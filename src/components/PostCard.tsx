@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { Alert, Pressable, Share, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, Share, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import type { SocialPost, CatalogAttachment } from '../../shared/social';
@@ -25,7 +27,9 @@ export function PostCard({
   const uid = useLocal((s) => s.uid),
     { changed } = useSocial(),
     [error, setError] = useState(''),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    // The whole photo, shown full screen; the feed crops photos to squares.
+    [viewing, setViewing] = useState<string | null>(null);
   async function mutate(name: string, data: unknown) {
     setBusy(true);
     setError('');
@@ -125,16 +129,20 @@ export function PostCard({
             <Pressable
               key={media.id}
               accessibilityRole="button"
-              accessibilityLabel={post.kind === 'video' ? 'Watch video' : 'Open post photo'}
+              accessibilityLabel={post.kind === 'video' ? 'Watch video' : 'View full photo'}
               onPress={() =>
                 post.kind === 'video'
                   ? router.push({ pathname: '/videos', params: { start: post.id } })
-                  : open()
+                  : setViewing(media.url || media.thumbnailUrl || null)
               }
               style={{ borderRadius: radius.large, overflow: 'hidden' }}
             >
               <Artwork
-                uri={media.thumbnailUrl || media.url}
+                uri={
+                  post.kind === 'video'
+                    ? media.thumbnailUrl || media.url
+                    : media.url || media.thumbnailUrl
+                }
                 name={post.kind === 'video' ? 'Video' : 'Post photo'}
                 size="fill"
               />
@@ -220,6 +228,33 @@ export function PostCard({
         </Text>
       )}
       <ErrorLine message={error} />
+      <Modal
+        visible={!!viewing}
+        animationType="fade"
+        presentationStyle="overFullScreen"
+        transparent
+        onRequestClose={() => setViewing(null)}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Close photo"
+            onPress={() => setViewing(null)}
+            hitSlop={8}
+            style={{ alignSelf: 'flex-end', padding: space[16] }}
+          >
+            <Ionicons name="close" size={28} color={c.text} />
+          </Pressable>
+          {viewing ? (
+            <Image
+              source={{ uri: viewing }}
+              contentFit="contain"
+              accessibilityLabel="Post photo"
+              style={{ flex: 1, marginBottom: space[16] }}
+            />
+          ) : null}
+        </SafeAreaView>
+      </Modal>
     </View>
   );
 }

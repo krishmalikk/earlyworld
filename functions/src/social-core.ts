@@ -30,19 +30,10 @@ export async function socialContext(request: CallableRequest, publishing = false
     throw new HttpsError('permission-denied', 'This account cannot use social features.');
   const admin = request.auth?.token.admin === true;
   const flags = control.data() || {};
-  if (publishing) {
-    if (!admin && flags.creation !== true)
-      throw new HttpsError(
-        'failed-precondition',
-        'Posting is not available yet. Your draft stays on this device.',
-      );
-    if (!user.data()?.onboardingComplete)
-      throw new HttpsError('failed-precondition', 'Finish onboarding first.');
-    if (request.auth?.token.email_verified !== true)
-      throw new HttpsError('failed-precondition', 'Verify your email before publishing.');
-    if (account.data()?.eligible !== true)
-      throw new HttpsError('failed-precondition', 'Complete community eligibility first.');
-  }
+  // Posting is open to every onboarded listener for now: no creation switch, email
+  // verification or eligibility gate, and posts publish without moderation.
+  if (publishing && !user.data()?.onboardingComplete)
+    throw new HttpsError('failed-precondition', 'Finish onboarding first.');
   return { uid, admin, flags, user: user.data() || {}, account: account.data() || {} };
 }
 export function assertAdmin(request: CallableRequest) {

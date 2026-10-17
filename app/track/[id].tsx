@@ -1,5 +1,5 @@
 import { useCommunity } from '../../src/data/community';
-import { newPostId } from '../../src/data/post-drafts';
+import { newPostId } from '../../src/data/post-composer';
 import { fontSize, fontWeight, radius, space } from '../../shared/theme';
 import { useEffect, useMemo, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';

@@ -27,9 +27,7 @@ export function PostList({
             <Empty
               title="No posts yet."
               detail={
-                mode === 'own'
-                  ? 'Your drafts and submitted posts appear here.'
-                  : 'Approved posts will appear here.'
+                mode === 'bookmarks' ? 'Posts you bookmark appear here.' : 'Posts appear here.'
               }
             />
           ) : null

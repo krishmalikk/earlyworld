@@ -8,6 +8,7 @@ import { useRatingList } from '../data/ratings';
 import { HighestRated } from './HighestRated';
 import { FavoriteTracks } from './FavoriteTracks';
 import { ProfilePosts } from './ProfilePosts';
+import { DiaryPreview } from './Diary';
 import { ReleaseReviews } from './Releases';
 import { RatingCard } from './Ratings';
 import { Ionicons } from '@expo/vector-icons';
@@ -197,29 +198,21 @@ export function Profile({ uid }: { uid: string }) {
         own={own}
         kind="release"
       />
+      {/* Private by default: other listeners will see a diary only once its owner turns it on in Settings. */}
+      {own ? <DiaryPreview key={`diary:${currentUid}`} /> : null}
       <ProfilePosts key={`posts:${currentUid}:${uid}`} uid={uid} own={own} />
       {own ? (
-        <Section title="Submissions & bookmarks">
+        <Section title="Bookmarks & updates">
           <View style={[s.panel, { padding: space[0], gap: space[0] }]}>
-            {(
-              [
-                ['create-outline', 'Drafts & submissions', 'own'],
-                ['bookmark-outline', 'Bookmarked posts', 'bookmarks'],
-              ] as const
-            ).map(([icon, label, mode], index) => (
-              <View key={mode}>
-                {index > 0 ? <View style={styles.statDivider} /> : null}
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => router.push({ pathname: '/posts', params: { mode } })}
-                  style={({ pressed }) => [styles.linkRow, { opacity: pressed ? 0.7 : 1 }]}
-                >
-                  <Ionicons name={icon} size={20} color={c.accent} />
-                  <Text style={[s.text, { flex: 1 }]}>{label}</Text>
-                  <Ionicons name="chevron-forward" size={18} color={c.muted} />
-                </Pressable>
-              </View>
-            ))}
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push({ pathname: '/posts', params: { mode: 'bookmarks' } })}
+              style={({ pressed }) => [styles.linkRow, { opacity: pressed ? 0.7 : 1 }]}
+            >
+              <Ionicons name="bookmark-outline" size={20} color={c.accent} />
+              <Text style={[s.text, { flex: 1 }]}>Bookmarked posts</Text>
+              <Ionicons name="chevron-forward" size={18} color={c.muted} />
+            </Pressable>
           </View>
           {submissions.data
             .filter((p) => p.status !== 'approved')
@@ -387,7 +380,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   sceneText: { color: c.accent, fontSize: fontSize.navigation },
-  statDivider: { height: StyleSheet.hairlineWidth, backgroundColor: c.line },
   linkRow: {
     flexDirection: 'row',
     alignItems: 'center',

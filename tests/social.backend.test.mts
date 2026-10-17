@@ -102,21 +102,19 @@ test('submission publishes immediately and revisions preserve publication identi
   assert.equal(edited.text, 'Edited');
   assert.equal(edited.publishedAt, p.publishedAt);
 });
-test('ownership, verified email, eligibility and creation flags are enforced', async () => {
+test('ownership is enforced, and posting is open without email, eligibility or creation gates', async () => {
   await save();
   await assert.rejects(save('one', 'Hijack', 'bob'), { code: 'permission-denied' });
   await assert.rejects(submit('one', 'bob'), { code: 'not-found' });
-  await assert.rejects(
-    api.savePostDraft.run({
-      auth: { uid: 'alice', token: { email_verified: false } },
-      data: { id: 'two', content: content() },
-    } as any),
-    { code: 'failed-precondition' },
-  );
+  await api.savePostDraft.run({
+    auth: { uid: 'alice', token: { email_verified: false } },
+    data: { id: 'two', content: content() },
+  } as any);
   await db.doc('_socialAccounts/alice').set({ eligible: false });
-  await assert.rejects(save('two'), { code: 'failed-precondition' });
   await db.doc('_socialControl/config').update({ creation: false });
-  await assert.rejects(save('three'), { code: 'failed-precondition' });
+  await save('three');
+  await db.doc('users/alice').update({ onboardingComplete: false });
+  await assert.rejects(save('four'), { code: 'failed-precondition' });
 });
 test('blank posts, invalid attachments and foreign media are rejected', async () => {
   await save('blank', '  ');

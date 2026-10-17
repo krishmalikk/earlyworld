@@ -13,7 +13,7 @@ import {
 import { auth, call, errorMessage } from '../lib/firebase';
 import { useLocal } from '../state/local';
 import { useSocial, useSocialStatus } from '../data/social';
-import { clearLocalPostDraft } from '../data/post-drafts';
+import { clearComposerFiles } from '../data/post-composer';
 import { Button, Chip, ErrorLine, Field, Section, c, s } from './ui';
 import { radius, space } from '../../shared/theme';
 
@@ -315,7 +315,7 @@ export function DeleteAccountControls() {
                     }
                     // An accepted deletion must still sign out if local file cleanup fails.
                     try {
-                      await clearLocalPostDraft(uid);
+                      await clearComposerFiles();
                     } finally {
                       if (auth.currentUser?.uid === uid) await signOut(auth);
                     }

@@ -32,10 +32,13 @@ A **Diary** section on the profile.
 
 ## Who can see it
 
-| Phase | Visibility                                                  |
-| ----- | ----------------------------------------------------------- |
-| v1    | Your own diary only                                         |
-| v2    | Visible on every profile, with a setting to keep it private |
+- **Private by default.** A diary only ever shows on its owner's profile.
+- **Opt in to share.** A "Show my diary on my profile" setting on the upcoming Settings page makes it visible to other listeners. It starts off.
+
+| Phase | Visibility                                             |
+| ----- | ------------------------------------------------------ |
+| v1    | Your own diary only. Nobody else can see it.           |
+| v2    | Others see your diary only if you turn the setting on. |
 
 ## Data
 
@@ -47,12 +50,14 @@ A **Diary** section on the profile.
 
 ### v2: other people's diaries
 
-- A `readCommunity` view (`diary`, by `uid`) that returns another listener's ratings and saves by date, respecting blocks and the privacy setting, the same way profiles are read today.
+- A `diaryPublic` flag on `users/{uid}`, off by default, set from the Settings page (coming soon).
+- A `readCommunity` view (`diary`, by `uid`) that returns another listener's ratings and saves by date only when their `diaryPublic` is on, and never across a block. The server enforces this; ratings stay owner-only in `firestore.rules`.
+- The profile shows the Diary section on someone else's profile only when their flag is on.
 
 ## Build phases
 
 1. **v1 (a few days):** Diary section on the profile and the full diary screen.
-2. **v2:** other listeners' diaries and the privacy setting.
+2. **v2:** other listeners' diaries, once the Settings page (with the privacy setting) ships.
 
 ## Metrics
 
@@ -62,4 +67,3 @@ A **Diary** section on the profile.
 ## Open questions
 
 - Does the diary include posts, or only ratings and saves?
-- In v2, public or private by default?

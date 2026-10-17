@@ -18,7 +18,7 @@ Public creation, publication and playback remain disabled. Live media validation
 
 Five tabs: Feed, Discover, Create, Matches, Profile. `/add` redirects to Create. The old public catalog-creation callable now requires an admin claim; catalog jobs remain available to operators.
 
-Create offers posts (1,000 characters, four photos, one catalog attachment) and existing videos (5–60 seconds, 150 MB). Scene tags are optional, limited to three. Selected files are copied to an account-specific local draft directory. Uploads show progress, allow cancellation/retry, and do not promise background completion after termination. Device drafts expire after seven inactive days. Approved posts cannot replace their media.
+Create offers posts (1,000 characters, four photos, one catalog attachment) and existing videos (5–60 seconds, 150 MB). Scene tags are optional, limited to three. There are no drafts: the post being written lives in memory, and leaving the app or posting clears it. Selected files are copied to a temporary cache folder for upload. Uploads show progress and allow cancellation and retry, and do not promise background completion after termination. A share card can start a post from the share screen (see [share cards](share-cards.md)). Tapping a photo in a post shows it full screen, uncropped. Approved posts cannot replace their media.
 
 The Feed retains its catalog radar, releases, saves, and listener ratings. Approved posts are a separate activity identity. Filters: All activity, Posts, Ratings & reviews. Videos has Explore/Following and scenes, chronological publication order, vertical paging, one active player and at most the next player prepared. Clips preserve framing, loop, start muted, and pause when the screen loses focus, the app backgrounds, or comments open. Sound choice lasts for the account session. Likes, private bookmarks, comments and share links are independent of track saves/ratings.
 
@@ -26,7 +26,7 @@ Profiles link to Posts, Videos, Bookmarked posts, and private submissions after 
 
 ## Private/public boundary
 
-- `_postDrafts`: author-owned proposed content and revision state; private to callable APIs.
+- `_postDrafts`: staging for uploads and publishing (not user-facing drafts); private to callable APIs.
 - `posts`: approved content only; client Firestore access is denied. Server-authorized reads check both directions of blocking, suspension and deletion.
 - `_socialMedia`: private upload tickets, paths, validation status, leases and Transcoder job references.
 - `_mediaJobs`, `_socialCleanup`: processing and eventual deletion work.

@@ -10,12 +10,7 @@ export default function Posts() {
     <>
       <Stack.Screen
         options={{
-          title:
-            mode === 'own'
-              ? 'Your submissions'
-              : mode === 'bookmarks'
-                ? 'Bookmarked posts'
-                : 'Posts',
+          title: mode === 'bookmarks' ? 'Bookmarked posts' : 'Posts',
         }}
       />
       <PostList mode={mode} uid={uid} kind={kind} />

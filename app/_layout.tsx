@@ -74,6 +74,7 @@ function Navigation() {
       <Stack.Screen name="user/[id]" options={{ title: 'Profile' }} />
       <Stack.Screen name="share" options={{ title: 'Share', presentation: 'modal' }} />
       <Stack.Screen name="edit-profile" options={{ title: 'Edit profile' }} />
+      <Stack.Screen name="diary" options={{ title: 'Diary' }} />
     </Stack>
   );
 }
