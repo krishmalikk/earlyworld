@@ -2,6 +2,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { FieldPath, type Query, type DocumentData } from 'firebase-admin/firestore';
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { db, FieldValue, hash, rateLimit } from './core';
+import { searchText } from '../../shared/catalog-search';
 import {
   blocked,
   followedPage,
@@ -29,6 +30,12 @@ export const readCommunity = onCall(async (r) => {
   const { uid } = await socialContext(r);
   await rateLimit(uid, 'communityRead', 1200);
   const kind = r.data?.kind;
+  if (
+    r.data?.search != null &&
+    (kind !== 'saves' || typeof r.data.search !== 'string' || r.data.search.length > 100)
+  )
+    throw new HttpsError('invalid-argument', 'Saved-track search must be at most 100 characters.');
+  const needle = kind === 'saves' ? searchText(r.data?.search || '') : '';
   if (
     r.data?.following &&
     (!['ratings', 'releaseRatings', 'activity'].includes(kind) || r.data?.highest)
@@ -69,7 +76,7 @@ export const readCommunity = onCall(async (r) => {
     const d = await db.doc(`users/${author}`).get();
     if (!d.exists) throw new HttpsError('not-found', 'Profile unavailable.');
     const p = d.data()!;
-    const avatar = p.avatarMediaId ? await mediaDTO(p.avatarMediaId, false) : null;
+    const avatar = p.avatarMediaId ? await mediaDTO(p.avatarMediaId) : null;
     const keys = [
       'username',
       'bio',
@@ -159,7 +166,17 @@ export const readCommunity = onCall(async (r) => {
       kind === 'rotation' || kind === 'leaders'
         ? `${p.score}|0:${d.id}`
         : `${r.data?.highest ? `${p.halfStars}|` : ''}${makeCursor(p[field], d.id)}`;
-    if (who && !(await canView(uid, who))) continue;
+    // The library owner was authorized above. Search the complete saved metadata,
+    // not just the client's currently loaded catalog references.
+    if (
+      kind === 'saves' &&
+      needle &&
+      !searchText(
+        [p.title, p.artistName, p.producerName].filter((v) => typeof v === 'string').join(' '),
+      ).includes(needle)
+    )
+      continue;
+    if (who && kind !== 'saves' && !(await canView(uid, who))) continue;
     if (
       r.data?.following &&
       who !== uid &&
@@ -169,7 +186,7 @@ export const readCommunity = onCall(async (r) => {
     // Owner-only view: preview a pending profile photo before it is approved.
     const photo =
       kind === 'textSubmissions' && p.status === 'pending' && p.photoMediaId
-        ? await mediaDTO(p.photoMediaId, false)
+        ? await mediaDTO(p.photoMediaId)
         : null;
     items.push({ id: d.id, ...serialize(p), ...(photo?.url ? { photoUrl: photo.url } : {}) });
     if (items.length === 25) break;

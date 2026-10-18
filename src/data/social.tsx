@@ -17,7 +17,6 @@ import type { SocialPage, SocialPost } from '../../shared/social';
 export type SocialStatus = {
   creation: boolean;
   publication: boolean;
-  playback: boolean;
   uploads: boolean;
   admin: boolean;
   eligible: boolean;
@@ -27,8 +26,6 @@ export type SocialStatus = {
 const Context = createContext({
   version: 0,
   changed: () => {},
-  videoMuted: true,
-  setVideoMuted: (_value: boolean) => {},
 });
 export function SocialProvider({ children }: { children: React.ReactNode }) {
   const uid = useLocal((s) => s.uid);
@@ -43,13 +40,9 @@ function AccountSocial({ uid, children }: { uid: string | null; children: React.
     ownRef = useMemo(() => (uid ? doc(db, 'users', uid, 'socialState', 'current') : null), [uid]);
   const global = useDocument(globalRef),
     own = useDocument(ownRef);
-  const [version, setVersion] = useState(0),
-    [videoMuted, setVideoMuted] = useState(true);
+  const [version, setVersion] = useState(0);
   useEffect(() => setVersion((v) => v + 1), [global.data, own.data]);
-  const value = useMemo(
-    () => ({ version, changed: () => setVersion((v) => v + 1), videoMuted, setVideoMuted }),
-    [version, videoMuted],
-  );
+  const value = useMemo(() => ({ version, changed: () => setVersion((v) => v + 1) }), [version]);
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 export const useSocial = () => useContext(Context);

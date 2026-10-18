@@ -13,7 +13,7 @@ beforeEach(async () => {
     `http://${process.env.FIRESTORE_EMULATOR_HOST}/emulator/v1/projects/demo-earlyworld-social/databases/(default)/documents`,
     { method: 'DELETE' },
   );
-  await db.doc('_socialControl/config').set({ playback: false });
+  await db.doc('_socialControl/config').set({});
   for (const uid of ['me', 'friend', 'stranger', 'blocked']) {
     await db.doc(`users/${uid}`).set({ username: uid, avatarUrl: '', scenes: ['plugg'] });
     await db.doc(`_socialAccounts/${uid}`).set({ eligible: true });

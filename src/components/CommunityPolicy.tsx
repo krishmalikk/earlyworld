@@ -7,21 +7,21 @@ export function CommunityPolicy({ section }: { section?: 'rules' | 'privacy' }) 
         <Section title="Community rules">
           <Text style={s.text}>
             Post only media you created or have permission to share. No harassment, threats, sexual
-            content, hate, exploitation, or disclosure of someone’s private information. Music clips
-            must have sharing permission too.
+            content, hate, exploitation, or disclosure of someone’s private information. Music must
+            have sharing permission too.
           </Text>
           <Text style={s.muted}>
-            Posts, videos, written reviews, comments, and profile changes publish right away. You
-            can report content, block users, or delete your own posts.
+            Posts, written reviews, comments, and profile changes publish right away. You can report
+            content, block users, or delete your own posts.
           </Text>
         </Section>
       )}
       {section !== 'rules' && (
         <Section title="Privacy">
           <Text style={s.text}>
-            Community content is visible to signed-in listeners. Your bookmarks, drafts, reports,
-            and eligibility information are private. We do not display your age or collect location
-            for this feature. Video storage and processing use Google Cloud.
+            Community content is visible to signed-in listeners. Your bookmarks, reports, and
+            eligibility information are private. We do not display your age or collect location for
+            this feature.
           </Text>
           <Text style={s.muted}>
             This launch has no direct messages, contact discovery, or targeted advertising. Deleting

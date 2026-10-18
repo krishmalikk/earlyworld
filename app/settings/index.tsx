@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { signOut } from '@react-native-firebase/auth';
+import { signOut } from '../../src/lib/social-sign-in';
 import { auth } from '../../src/lib/firebase';
 import { useSocial, useSocialStatus } from '../../src/data/social';
 import { Button, ErrorLine, Page } from '../../src/components/ui';
@@ -83,7 +83,7 @@ export default function Settings() {
         </Button>
       ) : null}
       <ActionFeedback {...action} />
-      <Button quiet busy={action.busy} onPress={() => void action.run(() => signOut(auth))}>
+      <Button quiet busy={action.busy} onPress={() => void action.run(() => signOut())}>
         Sign out
       </Button>
       <SettingsGroup title="Account actions">

@@ -22,9 +22,7 @@ beforeEach(async () => {
     `http://${process.env.FIRESTORE_EMULATOR_HOST}/emulator/v1/projects/demo-earlyworld-social/databases/(default)/documents`,
     { method: 'DELETE' },
   );
-  await db
-    .doc('_socialControl/config')
-    .set({ creation: true, uploads: true, publication: true, playback: false });
+  await db.doc('_socialControl/config').set({ creation: true, uploads: true, publication: true });
   for (const uid of ['alice', 'bob', 'mod']) {
     await db.doc(`users/${uid}`).set({ username: uid, avatarUrl: '', onboardingComplete: true });
     await db.doc(`_socialAccounts/${uid}`).set({ eligible: true });
@@ -416,4 +414,110 @@ test('account deletion requires recent authentication and queues an idempotent o
   assert.equal((await db.doc('_accountDeletion/bob').get()).exists, false);
   assert.equal((await db.doc('_socialAccounts/alice').get()).data()?.deleting, true);
   assert.equal((await db.doc('_socialAccounts/bob').get()).data()?.deleting, undefined);
+});
+
+test('saved libraries page beyond 300 entries and search beyond the first scan without bypassing blocks', async () => {
+  const { readCommunity } = await import('../functions/src/social-reads.ts');
+  const batch = db.batch();
+  for (let i = 0; i < 301; i++) {
+    const id = `saved${String(i).padStart(3, '0')}`;
+    batch.set(db.doc(`users/alice/saves/${id}`), {
+      trackId: id,
+      title: i === 0 ? 'Café discovery' : `Track ${i}`,
+      artistName: 'Artist',
+      producerName: 'Producer',
+      savedAt: new Date(1700000000000 + i),
+    });
+  }
+  await batch.commit();
+  let cursor: string | null = null;
+  const ids: string[] = [];
+  do {
+    const page = await readCommunity.run(req('bob', { kind: 'saves', uid: 'alice', cursor }));
+    assert.ok(page.items.length <= 25);
+    ids.push(...page.items.map((p: any) => p.id));
+    cursor = page.cursor;
+  } while (cursor);
+  assert.equal(ids.length, 301);
+  assert.equal(new Set(ids).size, 301);
+  assert.equal(ids[0], 'saved300');
+  assert.equal(ids.at(-1), 'saved000');
+  const first = await readCommunity.run(
+    req('bob', { kind: 'saves', uid: 'alice', search: 'CAFE' }),
+  );
+  assert.equal(first.items.length, 0);
+  assert.ok(first.cursor, 'An empty scan must retain its continuation cursor');
+  const second = await readCommunity.run(
+    req('bob', { kind: 'saves', uid: 'alice', search: 'CAFE', cursor: first.cursor }),
+  );
+  assert.deepEqual(
+    second.items.map((p: any) => p.id),
+    ['saved000'],
+  );
+  assert.equal(second.cursor, null);
+  await assert.rejects(
+    readCommunity.run(req('bob', { kind: 'saves', uid: 'alice', search: 'x'.repeat(101) })),
+    /100 characters/,
+  );
+  await api.setUserBlock.run(req('bob', { uid: 'alice', blocked: true }));
+  await assert.rejects(
+    readCommunity.run(req('bob', { kind: 'saves', uid: 'alice' })),
+    /unavailable/,
+  );
+  await assert.rejects(
+    readCommunity.run(req('alice', { kind: 'saves', uid: 'bob' })),
+    /unavailable/,
+  );
+});
+
+test('submission status is owner-only and excludes published posts and abandoned uploads', async () => {
+  for (const [id, status, reason] of [
+    ['processing', 'processing', ''],
+    ['waiting', 'pending', ''],
+    ['failed', 'draft', 'A photo could not be processed.'],
+    ['abandoned', 'draft', ''],
+    ['live', 'published', ''],
+    ['removed', 'deleted', ''],
+  ]) {
+    await db
+      .doc(`_postDrafts/${id}`)
+      .set({ ...content(), uid: 'alice', status, reason, updatedAt: new Date() });
+  }
+  const page = await api.listPosts.run(req('alice', { mode: 'submissions', uid: 'bob' }));
+  assert.deepEqual(page.items.map((p) => p.id).sort(), ['failed', 'processing', 'waiting']);
+  assert.equal(
+    (await api.listPosts.run(req('bob', { mode: 'submissions', uid: 'alice' }))).items.length,
+    0,
+  );
+  const failed = await api.getPost.run(req('alice', { id: 'failed', own: true }));
+  assert.match(failed.reason!, /could not be processed/);
+  await assert.rejects(api.getPost.run(req('bob', { id: 'failed', own: true })), /unavailable/);
+  await assert.rejects(api.getPost.run(req('bob', { id: 'processing' })), /unavailable/);
+});
+
+test('a failed photo returns an actionable private submission and can be removed before retrying the same post', async () => {
+  const { advancePost } = await import('../functions/src/social-media.ts');
+  await save('retry-photo');
+  await db
+    .doc('_socialMedia/broken-photo')
+    .set({ uid: 'alice', postId: 'retry-photo', kind: 'photo', status: 'processing' });
+  await api.savePostDraft.run(
+    req('alice', { id: 'retry-photo', content: { ...content(), mediaIds: ['broken-photo'] } }),
+  );
+  assert.equal((await submit('retry-photo')).status, 'processing');
+  assert.equal((await db.doc('posts/retry-photo').get()).exists, false);
+  await db.doc('_socialMedia/broken-photo').update({ status: 'failed' });
+  await advancePost('retry-photo');
+  const failed = await api.getPost.run(req('alice', { id: 'retry-photo', own: true }));
+  assert.equal(failed.status, 'draft');
+  assert.match(failed.reason!, /Remove it and choose another/);
+  assert.equal(
+    (await api.listPosts.run(req('alice', { mode: 'submissions' }))).items[0].id,
+    'retry-photo',
+  );
+  await api.savePostDraft.run(req('alice', { id: 'retry-photo', content: content() }));
+  assert.equal((await submit('retry-photo')).status, 'published');
+  await submit('retry-photo');
+  assert.equal((await db.collection('posts').get()).size, 1);
+  assert.equal((await api.listPosts.run(req('alice', { mode: 'submissions' }))).items.length, 0);
 });

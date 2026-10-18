@@ -17,12 +17,11 @@ import { useSession } from '../../src/data/session';
 import { useCatalogIds, useCatalogPage } from '../../src/data/catalog';
 import { useCollection, useForeground } from '../../src/data/listeners';
 import type { Follow, Rating, ReleaseRating, Track } from '../../src/data/types';
-import { Tabs, router } from 'expo-router';
-import { Artwork, c, Empty, ErrorLine, Page, s, Segmented } from '../../src/components/ui';
+import { router } from 'expo-router';
+import { Artwork, c, Empty, ErrorLine, Page, s } from '../../src/components/ui';
 import { FeedCarousel } from '../../src/components/FeedCarousel';
 import { usePostPage } from '../../src/data/social';
 import { PostCard } from '../../src/components/PostCard';
-import { VideoFeed } from '../../src/components/VideoFeed';
 import type { SocialPost } from '../../shared/social';
 import { mergeFeedEntries } from '../../shared/feed';
 import { averageRating } from '../../shared/ratings';
@@ -41,10 +40,6 @@ type Entry = {
   /** Why For You chose this item. */
   reason?: string;
 };
-const VIEWS = [
-  { value: 'feed', label: 'Feed' },
-  { value: 'videos', label: 'Videos' },
-] as const;
 const FILTERS = [
   { value: 'all', label: 'All' },
   { value: 'posts', label: 'Posts' },
@@ -52,23 +47,9 @@ const FILTERS = [
 ] as const;
 type Filter = (typeof FILTERS)[number]['value'];
 export default function Feed() {
-  const [view, setView] = useState<(typeof VIEWS)[number]['value']>('feed');
   return (
     <View style={s.page}>
-      <Tabs.Screen
-        options={{
-          headerRight: () => (
-            <Segmented
-              compact
-              options={VIEWS}
-              value={view}
-              onChange={setView}
-              style={{ marginRight: space[16], width: 148 }}
-            />
-          ),
-        }}
-      />
-      {view === 'videos' ? <VideoFeed /> : <Timeline />}
+      <Timeline />
     </View>
   );
 }

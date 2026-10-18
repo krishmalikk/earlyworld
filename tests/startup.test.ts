@@ -23,4 +23,7 @@ test('incomplete accounts resume onboarding instead of seeing welcome again', ()
   for (const group of [undefined, 'index', 'auth', '(tabs)'])
     assert.equal(startupRedirect({ ...state, group }), '/onboarding');
   assert.equal(startupRedirect({ ...state, group: 'onboarding' }), null);
+  assert.equal(startupRedirect({ ...state, group: 'community' }), null);
+  for (const group of ['settings', 'post', 'user'])
+    assert.equal(startupRedirect({ ...state, group }), '/onboarding');
 });

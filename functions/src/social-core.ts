@@ -101,7 +101,7 @@ export function touchSocial(tx: Transaction, uid: string) {
     { merge: true },
   );
 }
-export async function mediaDTO(id: string, playback: boolean): Promise<SocialMedia> {
+export async function mediaDTO(id: string): Promise<SocialMedia> {
   const snap = await db.doc(`_socialMedia/${id}`).get(),
     m = snap.data();
   if (!m) return { id, kind: 'photo', status: 'failed' };
@@ -115,8 +115,7 @@ export async function mediaDTO(id: string, playback: boolean): Promise<SocialMed
         .getSignedUrl({ action: 'read', expires: Date.now() + 5 * 60000 })
     )[0];
   if (m.thumbnailPath) result.thumbnailUrl = await signed(m.thumbnailPath);
-  if (m.kind === 'photo' || playback) result.url = await signed(m.displayPath);
-  if (m.duration) result.duration = m.duration;
+  result.url = await signed(m.displayPath);
   if (m.width) result.width = m.width;
   if (m.height) result.height = m.height;
   return result;
@@ -125,7 +124,6 @@ export async function postDTO(
   id: string,
   p: DocumentData,
   uid: string,
-  playback: boolean,
   privateView = false,
 ): Promise<SocialPost> {
   const [author, like, bookmark] = await db.getAll(
@@ -133,9 +131,7 @@ export async function postDTO(
     db.doc(`posts/${id}/likes/${uid}`),
     db.doc(`users/${uid}/postBookmarks/${id}`),
   );
-  const avatar = author.data()?.avatarMediaId
-    ? await mediaDTO(author.data()!.avatarMediaId, false)
-    : null;
+  const avatar = author.data()?.avatarMediaId ? await mediaDTO(author.data()!.avatarMediaId) : null;
   return {
     id,
     uid: p.uid,
@@ -156,7 +152,7 @@ export async function postDTO(
     commentCount: p.commentCount || 0,
     liked: like.exists,
     bookmarked: bookmark.exists,
-    media: await Promise.all((p.mediaIds || []).map((m: string) => mediaDTO(m, playback))),
+    media: await Promise.all((p.mediaIds || []).map((m: string) => mediaDTO(m))),
     ...(privateView && p.reason ? { reason: p.reason } : {}),
   };
 }

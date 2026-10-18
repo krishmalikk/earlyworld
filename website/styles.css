@@ -2,9 +2,10 @@
 
 /* Panchang (Fontshare) used as the display face for headings. Variable, 200-800. */
 @font-face {
-  font-family: "Panchang";
-  src: url("assets/fonts/Panchang-Variable.woff2") format("woff2"),
-    url("assets/fonts/Panchang-Variable.woff") format("woff");
+  font-family: 'Panchang';
+  src:
+    url('assets/fonts/Panchang-Variable.woff2') format('woff2'),
+    url('assets/fonts/Panchang-Variable.woff') format('woff');
   font-weight: 200 800;
   font-style: normal;
   font-display: swap;
@@ -19,8 +20,8 @@
   --faint: #7283b2;
   --accent: #a9b3fc;
 
-  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-display: "Panchang", system-ui, sans-serif;
+  --font-body: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Panchang', system-ui, sans-serif;
 }
 
 * {
@@ -251,7 +252,9 @@ img {
   margin: 0 -6px;
   border-radius: 10px;
   border-top: 1px solid var(--line);
-  transition: background 0.4s ease, transform 0.4s ease;
+  transition:
+    background 0.4s ease,
+    transform 0.4s ease;
   /* entrance */
   opacity: 0;
   transform: translateY(8px);
@@ -325,7 +328,9 @@ img {
 .save .glyph {
   font-size: 1.05rem;
   line-height: 1;
-  transition: transform 0.25s ease, color 0.25s ease;
+  transition:
+    transform 0.25s ease,
+    color 0.25s ease;
 }
 .save .count {
   font-size: 0.66rem;
@@ -351,7 +356,9 @@ img {
   border-radius: 999px;
   opacity: 0;
   transform: scale(0.7);
-  transition: opacity 0.25s ease, transform 0.25s ease;
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease;
 }
 .prow.saved[data-rare] .rare-pill {
   opacity: 1;
@@ -374,7 +381,9 @@ img {
   color: var(--muted);
   opacity: 0;
   transform: translateY(16px);
-  transition: opacity 0.35s ease, transform 0.35s ease;
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s ease;
   pointer-events: none;
 }
 .ptoast.show {
@@ -486,49 +495,6 @@ img {
   color: var(--muted);
 }
 
-/* ---------- Access ---------- */
-.access {
-  border-top: 1px solid var(--line);
-  padding: 80px 0;
-}
-.access h2 {
-  font-size: clamp(1.7rem, 4vw, 2.2rem);
-  font-weight: 700;
-}
-.access > .wrap > p {
-  color: var(--muted);
-  font-size: 1.1rem;
-  margin: 14px 0 26px;
-}
-#waitlist {
-  display: flex;
-  gap: 10px;
-  max-width: 440px;
-}
-#waitlist input {
-  flex: 1;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 12px 16px;
-  color: var(--text);
-  font-size: 1rem;
-  font-family: inherit;
-}
-#waitlist input:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-#waitlist input::placeholder {
-  color: var(--faint);
-}
-#formNote.ok {
-  color: var(--accent);
-}
-#formNote.err {
-  color: #f6988f;
-}
-
 /* ---------- Footer ---------- */
 .foot {
   border-top: 1px solid var(--line);
@@ -567,12 +533,6 @@ img {
   }
   .nav__links {
     display: none;
-  }
-  #waitlist {
-    flex-direction: column;
-  }
-  #waitlist .btn {
-    width: 100%;
   }
   .foot__inner {
     justify-content: flex-start;

@@ -1,4 +1,4 @@
-# Posts and short videos
+# Posts
 
 Implementation started October 1, 2026. Catalog metadata remains separate from uploaded media. No SoundCloud/Genius audio or video is downloaded or played.
 
@@ -18,17 +18,17 @@ Public creation, publication and playback remain disabled. Live media validation
 
 Five tabs: Feed, Discover, Create, Matches, Profile. `/add` redirects to Create. The old public catalog-creation callable now requires an admin claim; catalog jobs remain available to operators.
 
-Create offers posts (1,000 characters, four photos, one catalog attachment) and existing videos (5–60 seconds, 150 MB). Scene tags are optional, limited to three. There are no drafts: the post being written lives in memory, and leaving the app or posting clears it. Selected files are copied to a temporary cache folder for upload. Uploads show progress and allow cancellation and retry, and do not promise background completion after termination. A share card can start a post from the share screen (see [share cards](share-cards.md)). Tapping a photo in a post shows it full screen, uncropped. Approved posts cannot replace their media.
+Create offers posts: 1,000 characters, up to four photos and one catalog attachment. Scene tags are optional, limited to three. There are no drafts: the post being written lives in memory, and leaving the app or posting clears it. Selected files are copied to a temporary cache folder for upload. Uploads show progress and allow cancellation and retry, and do not promise background completion after termination. A share card can start a post from the share screen (see [share cards](share-cards.md)). Tapping a photo in a post shows it full screen, uncropped. Approved posts cannot replace their media.
 
-The Feed retains its catalog radar, releases, saves, and listener ratings. Approved posts are a separate activity identity. Filters: All activity, Posts, Ratings & reviews. Videos has Explore/Following and scenes, chronological publication order, vertical paging, one active player and at most the next player prepared. Clips preserve framing, loop, start muted, and pause when the screen loses focus, the app backgrounds, or comments open. Sound choice lasts for the account session. Likes, private bookmarks, comments and share links are independent of track saves/ratings.
+The Feed retains its catalog radar, releases, saves, and listener ratings. Approved posts are a separate activity identity. Filters: All, Posts, Reviews. Likes, private bookmarks, comments and share links are independent of track saves/ratings.
 
-Profiles link to Posts, Videos, Bookmarked posts, and private submissions after favorites. Pending/rejected text submissions are visible to their author. Written reviews, discussions, profile bios and photos now pass through moderation; numerical ratings still update immediately. The app retains the currently approved version during review of an edit.
+Profiles show Posts, then Bookmarked posts, after favorites. Pending/rejected text submissions are visible to their author. Written reviews, discussions, profile bios and photos now pass through moderation; numerical ratings still update immediately. The app retains the currently approved version during review of an edit.
 
 ## Private/public boundary
 
 - `_postDrafts`: staging for uploads and publishing (not user-facing drafts); private to callable APIs.
 - `posts`: approved content only; client Firestore access is denied. Server-authorized reads check both directions of blocking, suspension and deletion.
-- `_socialMedia`: private upload tickets, paths, validation status, leases and Transcoder job references.
+- `_socialMedia`: private upload tickets, paths, validation status, and leases.
 - `_mediaJobs`, `_socialCleanup`: processing and eventual deletion work.
 - `_postComments`: approved and pending single-level comments. Only approved comments or the requester's own pending/rejected comments appear in API responses.
 - `_textSubmissions`, `_moderation`, `_socialReports`: private review queues and decisions; moderation uses an admin custom claim. Reports record reporter and subject separately.
@@ -43,29 +43,28 @@ Cross-account profile, review, discussion, activity and leaderboard reads also u
 
 ## Media service
 
-`services/media-worker` is a private Cloud Run service invoked by the Functions scheduler with an identity token. It validates actual bytes and dimensions, uses Sharp to normalize photos and strip metadata, and ffprobe to inspect video duration, orientation and audio presence. Google Transcoder produces H.264 MP4 at 720/480 sizing with AAC only when an audio stream exists. ffmpeg generates the preview thumbnail. Processing never trusts the picker metadata as validation.
+`services/media-worker` is a private Cloud Run service invoked by the Functions scheduler with an identity token. It validates actual bytes and dimensions and uses Sharp to normalize photos (a 1600px display JPEG and a 480px thumbnail) and strip metadata. Processing never trusts the picker metadata as validation.
 
-Sources upload resumably to `social-staging/{uid}/{postId}/{mediaId}`. Rules require an exact, unexpired owner ticket, exact byte count/MIME type and the global upload switch. Firebase rejects client changes to its reserved download-token field but generates a token during upload. The finalization trigger and completion API revoke that token before queueing processing. A transient bearer-link window exists between upload completion and revocation; staging originals are never returned through post APIs. Processed objects and original uploads have no client read permission; callable responses sign authorized processed objects for five minutes. The `playback` switch controls signing video URLs; thumbnails can remain readable. Already issued URLs remain usable until expiry.
+Sources upload resumably to `social-staging/{uid}/{postId}/{mediaId}`. Rules require an exact, unexpired owner ticket, exact byte count/MIME type and the global upload switch. Firebase rejects client changes to its reserved download-token field but generates a token during upload. The finalization trigger and completion API revoke that token before queueing processing. A transient bearer-link window exists between upload completion and revocation; staging originals are never returned through post APIs. Processed objects and original uploads have no client read permission; callable responses sign authorized processed objects for five minutes. Already issued URLs remain usable until expiry.
 
-Successful original uploads are deleted. Abandoned/rejected drafts enter cleanup after seven days. Cleanup waits for worker leases and active Transcoder jobs and removes media, comments, bookmarks and public post records. A durable dispatch marker prevents a timed-out job-creation RPC from creating a duplicate billed job. An ambiguous dispatch is reconciled against Transcoder jobs; it fails closed rather than automatically sending a second creation request.
+Successful original uploads are deleted. Abandoned/rejected drafts enter cleanup after seven days. Cleanup waits for worker leases and removes media, comments, bookmarks and public post records.
 
-Limits: 10 submissions/account/day, three video tickets/account/day, 40 photo tickets/account/day, and 1,200 source-video seconds/project/day. Canceled video tickets count toward the daily upload quota. These limit abuse and processing, not all bandwidth charges. Worker requests retry up to six times with backoff. A conclusively failed Transcoder job with a transient provider error gets one new job with optimization disabled, following [Google’s troubleshooting guidance](https://docs.cloud.google.com/transcoder/docs/troubleshooting#internal-error); that retry reserves processing allowance again. Other terminal failures stop immediately. Unknown dispatch outcomes stay in reconciliation and never trigger a second job automatically. Operational events omit content, eligibility and private media URLs.
+Limits: 10 submissions/account/day and 40 photo tickets/account/day. These limit abuse and processing, not all bandwidth charges. Worker requests retry up to six times with backoff. Operational events omit content, eligibility and private media URLs.
 
-References: [Transcoder jobs and filtering](https://docs.cloud.google.com/transcoder/docs/how-to/jobs), [video configuration](https://docs.cloud.google.com/transcoder/docs/transcode-video), [signed URLs](https://docs.cloud.google.com/storage/docs/access-control/signed-urls), [Expo Video](https://docs.expo.dev/versions/latest/sdk/video/).
+References: [signed URLs](https://docs.cloud.google.com/storage/docs/access-control/signed-urls).
 
 ## Deployment
 
-Do not enable public creation as part of deployment. The default for creation, publication, upload and playback switches is false. Admins can prepare internal submissions while public creation remains disabled. Upload and publication switches still need to be explicitly enabled for internal media testing.
+Do not enable public creation as part of deployment. The default for creation, publication and upload switches is false. Admins can prepare internal submissions while public creation remains disabled. Upload and publication switches still need to be explicitly enabled for internal media testing.
 
 1. Authenticate a project-authorized Google Cloud account, and set Application Default Credentials for operator scripts. Use `earlyworld-6831c` explicitly; never rely on an unrelated default project.
 2. Deploy the callable Functions and new Firestore indexes before the client. Coordinate the tightened rules with distribution of the new client: older builds used direct community queries.
-3. Build/deploy the private media worker with `bash infra/social/deploy-worker.sh PROJECT BUCKET FUNCTIONS_RUNTIME_SERVICE_ACCOUNT`. The script configures least-purpose service identities, one worker instance/concurrency, no public invoker and private bucket permissions. Verify the Transcoder service agent can read/write this bucket.
+3. Build/deploy the private media worker with `bash infra/social/deploy-worker.sh PROJECT BUCKET FUNCTIONS_RUNTIME_SERVICE_ACCOUNT`. The script configures least-purpose service identities, one worker instance/concurrency, no public invoker and private bucket permissions.
 4. Put the resulting worker URL in the Functions runtime environment as `SOCIAL_MEDIA_WORKER_URL`; redeploy `processPostMedia`. Do not put it in an `EXPO_PUBLIC_` variable.
 5. Run `npm run social:admin -- init earlyworld-6831c` with authorized ADC. This initializes disabled switches and the public support email `earlyworldofficial@gmail.com` without resetting existing flags.
 6. The user approved moderator access for the existing account `krish.malik@gmail.com`. Assign via `npm run social:admin -- moderator earlyworld-6831c krish.malik@gmail.com`, preserving existing claims. Reauthenticate the app to refresh claims. Do not create a replacement account if no matching account exists.
 7. Deploy Hosting for the private-content share landing page and public community information. The HTTPS landing page opens `earlyworld://post/{id}`; no post content is embedded publicly. Universal/App Links with platform signing fingerprints can be added after distribution identities are finalized.
 8. Use `infra/social/budget.json` with the actual project number to create a USD 100 Cloud Billing budget with 50%, 80%, 100% actual-spend alerts. This template covers the project, including other Firebase costs. Confirm recipients in Cloud Billing. Alerts and estimated usage gates are **not billing caps**.
-9. Rebuild native development/release apps for Expo Video; JS refresh alone cannot install the native module.
 
 ## Public-launch gates
 
@@ -73,7 +72,7 @@ The support contact is earlyworldofficial@gmail.com. Do not enable public creati
 
 Review existing profile names/bios/avatars, track discussions and written reviews. The initial policy pages are implementation copy requiring the planned US teen privacy and content review; an age gate is not a compliance guarantee. See [Apple UGC requirements](https://developer.apple.com/app-store/review/guidelines/#user-generated-content).
 
-Operational process: moderators review the complete video (including audio), all photos and text before approving; reject with an actionable reason. Check reports daily during beta, prioritize threats/exploitation/private information, suspend accounts when appropriate, record the resolution, and route rights complaints to the support inbox. No automated legal determination or guaranteed response SLA is implied.
+Operational process: moderators review all photos and text before approving; reject with an actionable reason. Check reports daily during beta, prioritize threats/exploitation/private information, suspend accounts when appropriate, record the resolution, and route rights complaints to the support inbox. No automated legal determination or guaranteed response SLA is implied.
 
 ## Validation record
 
@@ -90,4 +89,16 @@ No public launch, legal signoff, physical-device result, or guaranteed $100 cap 
 
 ## October 12: publishing without review
 
-Moderation review was removed. Posts, videos, comments, written reviews, track discussions, usernames and profile changes publish as soon as they are submitted; posts and profile photos publish when their media finishes processing. `publishSubmission` (`functions/src/social-publish.ts`) holds the former approval logic, so publication identity, comment and review counts, block checks and suspension checks are unchanged. The moderation screen, `listModeration` and `moderateSocialContent` were deleted, and the `publication` switch no longer gates anything. Reporting, blocking, owner deletion and admin `suspendSocialAccount` / `resolveSocialReport` remain; there is no in-app screen for reports, so read `_socialReports` in the Firebase console. The `creation`, `uploads` and `playback` switches still control who can post media and whether videos play. Submissions that were pending before this change are not published automatically.
+Moderation review was removed. Posts, comments, written reviews, track discussions, usernames and profile changes publish as soon as they are submitted; posts and profile photos publish when their media finishes processing. `publishSubmission` (`functions/src/social-publish.ts`) holds the former approval logic, so publication identity, comment and review counts, block checks and suspension checks are unchanged. The moderation screen, `listModeration` and `moderateSocialContent` were deleted, and the `publication` switch no longer gates anything. Reporting, blocking, owner deletion and admin `suspendSocialAccount` / `resolveSocialReport` remain; there is no in-app screen for reports, so read `_socialReports` in the Firebase console. The `uploads` switch still controls photo uploads. Submissions that were pending before this change are not published automatically.
+
+## October 17: videos removed
+
+Video posts were removed completely; posts are text, up to four photos and a catalog link.
+
+- **App:** the Videos tab and full-screen player (`app/videos.tsx`, `VideoFeed`, `VideoPreview`), the Post/Video choice in Create, the play overlay on posts, the Posts/Videos toggle on profiles and the video mute state are gone. `expo-video` is uninstalled; rebuild native apps to drop it from the binary.
+- **Shared and Functions:** `PostContent.kind` is always `post` and `normalizePost` rejects `video`; `authorizePostUpload` accepts photos only; the video quota, `playback` switch, `listPosts` `kind` filter and Transcoder cleanup are removed. `mediaDTO` and `postDTO` no longer take a playback flag.
+- **Media worker:** photo-only. ffmpeg, ffprobe, `@google-cloud/video-transcoder` and `video-config.mjs` are removed, and the Dockerfile no longer installs ffmpeg. Redeploy it with `infra/social/deploy-worker.sh`, which no longer enables the Transcoder API or grants Transcoder roles. Earlier Transcoder grants on the project stay until removed by hand.
+- **Data:** no video posts, drafts, media or Transcoder jobs existed in `earlyworld-6831c` when this shipped. Firestore indexes that include `kind` are left in place and are harmless.
+- **Posting gates:** posting now needs only finished onboarding; the `creation` switch, email verification, eligibility and the rights checkbox no longer apply (see [share cards](share-cards.md) for posting a card).
+
+The validation record above describes the October 1 build, which still had video.

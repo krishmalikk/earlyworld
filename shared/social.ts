@@ -4,12 +4,7 @@ export const SOCIAL_LIMITS = {
   text: 1000,
   photos: 4,
   photoBytes: 15 * 1024 * 1024,
-  videoBytes: 150 * 1024 * 1024,
-  minSeconds: 5,
-  maxSeconds: 60,
   submissionsDaily: 10,
-  videosDaily: 3,
-  processingSecondsDaily: 1200,
 } as const;
 export type CatalogAttachment = {
   kind: 'track' | 'release' | 'artist' | 'producer';
@@ -17,7 +12,7 @@ export type CatalogAttachment = {
   label?: string;
 };
 export type PostContent = {
-  kind: 'post' | 'video';
+  kind: 'post';
   text: string;
   scenes: string[];
   attachment: CatalogAttachment | null;
@@ -26,11 +21,10 @@ export type PostContent = {
 export type PostStatus = 'draft' | 'processing' | 'pending' | 'published' | 'rejected' | 'deleted';
 export type SocialMedia = {
   id: string;
-  kind: 'photo' | 'video';
+  kind: 'photo';
   status: 'authorized' | 'processing' | 'ready' | 'failed';
   url?: string;
   thumbnailUrl?: string;
-  duration?: number;
   width?: number;
   height?: number;
 };
@@ -65,7 +59,8 @@ export function validSocialId(value: unknown): value is string {
 export function normalizePost(input: unknown): PostContent {
   if (!input || typeof input !== 'object') throw Error('Check your post.');
   const d = input as Record<string, unknown>;
-  if (d.kind !== 'post' && d.kind !== 'video') throw Error('Choose Post or Video.');
+  if (d.kind !== undefined && d.kind !== 'post')
+    throw Error('Posts can only contain text and photos.');
   if (typeof d.text !== 'string' || d.text.length > SOCIAL_LIMITS.text)
     throw Error('Keep text within 1,000 characters.');
   if (
@@ -79,9 +74,9 @@ export function normalizePost(input: unknown): PostContent {
     !Array.isArray(d.mediaIds) ||
     d.mediaIds.some((id) => !validSocialId(id)) ||
     new Set(d.mediaIds).size !== d.mediaIds.length ||
-    d.mediaIds.length > (d.kind === 'video' ? 1 : 4)
+    d.mediaIds.length > SOCIAL_LIMITS.photos
   )
-    throw Error('Choose one video or up to four photos.');
+    throw Error('Choose up to four photos.');
   let attachment: CatalogAttachment | null = null;
   if (d.attachment != null) {
     const a = d.attachment as Record<string, unknown>;
@@ -92,10 +87,9 @@ export function normalizePost(input: unknown): PostContent {
       throw Error('Choose a catalog item.');
     attachment = { kind: a.kind as CatalogAttachment['kind'], id: a.id };
   }
-  return { kind: d.kind, text: d.text.trim(), scenes: d.scenes, mediaIds: d.mediaIds, attachment };
+  return { kind: 'post', text: d.text.trim(), scenes: d.scenes, mediaIds: d.mediaIds, attachment };
 }
 export function assertSubmittable(post: PostContent) {
-  if (post.kind === 'video' && post.mediaIds.length !== 1) throw Error('Choose a video first.');
   if (!post.text && !post.mediaIds.length && !post.attachment)
     throw Error('Add text, a photo, or a catalog link.');
 }

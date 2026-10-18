@@ -15,10 +15,8 @@ async function main() {
         tx.create(ref, {
           creation: false,
           publication: false,
-          playback: false,
           uploads: false,
           supportEmail: 'earlyworldofficial@gmail.com',
-          processingSecondsDaily: 1200,
           createdAt: FieldValue.serverTimestamp(),
         });
       else tx.update(ref, { supportEmail: 'earlyworldofficial@gmail.com' });
@@ -32,9 +30,7 @@ async function main() {
   } else if (command === 'flags') {
     const flags = JSON.parse(value || '{}');
     if (
-      Object.keys(flags).some(
-        (k) => !['creation', 'publication', 'playback', 'uploads'].includes(k),
-      ) ||
+      Object.keys(flags).some((k) => !['creation', 'publication', 'uploads'].includes(k)) ||
       Object.values(flags).some((v) => typeof v !== 'boolean')
     )
       throw Error('Only boolean feature switches are accepted.');
@@ -53,7 +49,6 @@ async function main() {
       JSON.stringify({
         creation: !!d.creation,
         publication: !!d.publication,
-        playback: !!d.playback,
         uploads: !!d.uploads,
         supportEmail: d.supportEmail || null,
       }),

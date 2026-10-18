@@ -216,7 +216,7 @@ export const readForYou = onCall(async (r) => {
     if (!visible.get(author)) continue;
     if (item.type === 'post') {
       const { id, p } = item.data as { id: string; p: DocumentData };
-      item.data = await postDTO(id, p, c.uid, c.flags.playback === true || c.admin);
+      item.data = await postDTO(id, p, c.uid);
     }
     items.push(item);
     last = item.at;

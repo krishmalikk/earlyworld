@@ -68,9 +68,7 @@ export async function advancePost(postId: string) {
     if (media.some((m) => m.data()?.status === 'failed')) {
       tx.update(ref, {
         status: 'draft',
-        reason: media.some((m) => m.data()?.errorCode === 'daily-cap')
-          ? 'Today’s video-processing limit has been reached. Try again tomorrow.'
-          : 'A file could not be processed. Remove it and choose another.',
+        reason: 'A photo could not be processed. Remove it and choose another.',
       });
       touchSocial(tx, p.uid);
       return false;
@@ -201,26 +199,10 @@ export const cleanPostMedia = onSchedule(
           (keep.has(m.id) || (m.data().createdAt?.toMillis() || 0) > Date.now() - 7 * 86400000)
         )
           continue;
-        // Wait for in-flight workers/transcodes; their final writes cannot republish this draft.
+        // Wait for an in-flight worker; its final write cannot republish this draft.
         if ((m.data().leaseUntil?.toMillis() || 0) > Date.now()) {
           pending = true;
           continue;
-        }
-        if (m.data().dispatchStartedAt && !m.data().jobName) {
-          // An ambiguous create RPC may still be running at the provider. Keep its
-          // references until the operator or processing retry reconciles the job.
-          pending = true;
-          continue;
-        }
-        if (m.data().jobName) {
-          const client = await new GoogleAuth().getClient();
-          const response = await client.request<{ state: string }>({
-            url: `https://transcoder.googleapis.com/v1/${m.data().jobName}`,
-          });
-          if (!['SUCCEEDED', 'FAILED'].includes(response.data.state)) {
-            pending = true;
-            continue;
-          }
         }
         await getStorage()
           .bucket()

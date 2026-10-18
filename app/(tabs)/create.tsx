@@ -1,8 +1,8 @@
 import { socialEvent } from '../../src/data/social-telemetry';
-import { VideoPreview } from '../../src/components/VideoPreview';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams, useNavigation, router } from 'expo-router';
+import { usePreventRemove } from 'expo-router/react-navigation';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { putFile, ref as storageRef } from '@react-native-firebase/storage';
@@ -17,6 +17,7 @@ import {
   type ComposerPost,
 } from '../../src/data/post-composer';
 import { useCatalogPage } from '../../src/data/catalog';
+import { PostAttachment } from '../../src/components/PostAttachment';
 import type { SocialPost, CatalogAttachment } from '../../shared/social';
 import { SOCIAL_LIMITS } from '../../shared/social';
 import { SCENES } from '../../shared/domain';
@@ -36,7 +37,16 @@ export default function Create() {
   const uid = useLocal((s) => s.uid);
   return uid ? <Composer key={uid} uid={uid} /> : null;
 }
+function compositionKey(post: ComposerPost) {
+  return JSON.stringify([
+    post.text,
+    post.scenes,
+    post.attachment,
+    post.files.map((file) => file.id),
+  ]);
+}
 function Composer({ uid }: { uid: string }) {
+  const navigation = useNavigation();
   const { edit, cardUri, cardTrackId, cardTrackTitle } = useLocalSearchParams<{
       edit?: string;
       cardUri?: string;
@@ -56,7 +66,21 @@ function Composer({ uid }: { uid: string }) {
     [picking, setPicking] = useState(false);
   const task = useRef<ReturnType<typeof putFile> | null>(null),
     alive = useRef(true),
-    cancelled = useRef(false);
+    cancelled = useRef(false),
+    baseline = useRef(compositionKey(draft));
+  usePreventRemove(ready && compositionKey(draft) !== baseline.current, ({ data }) => {
+    if (busy) {
+      Alert.alert(
+        'Upload in progress',
+        'Wait for submission to finish, or cancel the upload first.',
+      );
+      return;
+    }
+    Alert.alert('Discard post changes?', 'This composition is only kept while the app is open.', [
+      { text: 'Keep editing', style: 'cancel' },
+      { text: 'Discard', style: 'destructive', onPress: () => navigation.dispatch(data.action) },
+    ]);
+  });
   const collection = {
     track: 'tracks',
     release: 'releases',
@@ -79,8 +103,8 @@ function Composer({ uid }: { uid: string }) {
       if (edit) {
         const post = await call<SocialPost>('getPost', { id: edit, own: true });
         if (post.uid !== uid) throw Error('This is not your post.');
-        if (live)
-          setDraft({
+        if (live) {
+          const loaded: ComposerPost = {
             id: post.id,
             kind: post.kind,
             text: post.text,
@@ -91,21 +115,21 @@ function Composer({ uid }: { uid: string }) {
               id: m.id,
               uri: m.url || m.thumbnailUrl || '',
               kind: m.kind,
-              mime: m.kind === 'video' ? 'video/mp4' : 'image/jpeg',
+              mime: 'image/jpeg',
               bytes: 0,
               uploaded: true,
             })),
             editing: true,
             mediaLocked: !!post.publishedAt,
-          });
+          };
+          baseline.current = compositionKey(loaded);
+          setDraft(loaded);
+        }
       }
-    })()
-      .catch((e) => {
-        if (live) setError(errorMessage(e));
-      })
-      .finally(() => {
-        if (live) setReady(true);
-      });
+      if (live) setReady(true);
+    })().catch((e) => {
+      if (live) setError(errorMessage(e));
+    });
     return () => {
       live = false;
     };
@@ -163,11 +187,10 @@ function Composer({ uid }: { uid: string }) {
   async function choose() {
     setError('');
     try {
-      const video = draft.kind === 'video';
       const picked = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: video ? ['videos'] : ['images'],
-        allowsMultipleSelection: !video,
-        selectionLimit: video ? 1 : 4 - draft.files.length,
+        mediaTypes: ['images'],
+        allowsMultipleSelection: true,
+        selectionLimit: SOCIAL_LIMITS.photos - draft.files.length,
         quality: 0.9,
         exif: false,
       });
@@ -176,20 +199,17 @@ function Composer({ uid }: { uid: string }) {
       for (const asset of picked.assets) {
         const info = await FileSystem.getInfoAsync(asset.uri),
           bytes = asset.fileSize || (info.exists ? info.size : 0);
-        if (bytes > (video ? SOCIAL_LIMITS.videoBytes : SOCIAL_LIMITS.photoBytes))
-          throw Error(video ? 'Choose a video under 150 MB.' : 'Choose photos under 15 MB.');
-        if (video && asset.duration != null && (asset.duration < 5000 || asset.duration > 60000))
-          throw Error('Choose a video between 5 and 60 seconds.');
+        if (bytes > SOCIAL_LIMITS.photoBytes) throw Error('Choose photos under 15 MB.');
         const id = newPostId();
         files.push({
           id,
           uri: await keepComposerFile(asset.uri, id),
-          kind: video ? ('video' as const) : ('photo' as const),
-          mime: asset.mimeType || (video ? 'video/mp4' : 'image/jpeg'),
+          kind: 'photo' as const,
+          mime: asset.mimeType || 'image/jpeg',
           bytes,
         });
       }
-      update({ files: video ? files : [...draft.files, ...files].slice(0, 4) });
+      update({ files: [...draft.files, ...files].slice(0, SOCIAL_LIMITS.photos) });
     } catch (e) {
       setError(errorMessage(e));
     }
@@ -198,6 +218,7 @@ function Composer({ uid }: { uid: string }) {
     setBusy(true);
     setError('');
     cancelled.current = false;
+    setProgress('Saving your post…');
     try {
       const content = {
         kind: draft.kind,
@@ -253,17 +274,19 @@ function Composer({ uid }: { uid: string }) {
           mediaIds: draft.mediaLocked ? draft.mediaIds : files.map((f) => f.id),
         },
       });
-      const result = await call<{ status: string }>('submitPost', {
+      setProgress('Finishing submission…');
+      await call<{ status: string }>('submitPost', {
         id: draft.id,
       });
       await clearComposerFiles().catch(() => undefined);
       if (alive.current) {
-        setDraft(emptyPost());
+        const next = emptyPost();
+        baseline.current = compositionKey(next);
+        setDraft(next);
         setPreview(false);
         changed();
-        if (result.status === 'processing')
-          Alert.alert('Processing your media', 'Your post appears as soon as processing finishes.');
-        router.push('/(tabs)/profile');
+        router.setParams({ edit: '' });
+        router.push({ pathname: '/post/[id]', params: { id: draft.id, own: 'true' } });
       }
     } catch (e) {
       if (alive.current) setError(errorMessage(e));
@@ -281,43 +304,27 @@ function Composer({ uid }: { uid: string }) {
         <Heading display title={draft.editing ? 'Edit your post' : 'What’s on your mind?'} />
         <Text style={s.muted}>Share a find, a take, or a moment from your scene.</Text>
       </View>
-      {!draft.mediaLocked ? (
-        <View style={s.grid}>
-          {(['post', 'video'] as const).map((k) => (
-            <Chip
-              key={k}
-              label={k === 'post' ? 'Post' : 'Video'}
-              selected={draft.kind === k}
-              onPress={() => {
-                if (!busy) update({ kind: k, files: [], mediaIds: [] });
-              }}
-            />
-          ))}
-        </View>
-      ) : null}
       <ErrorLine message={error || status.error} />
+      {!ready && error ? (
+        <Button quiet onPress={() => router.back()}>
+          Back to post
+        </Button>
+      ) : null}
       {preview ? (
         <View style={s.panel}>
           <Text style={s.text}>{draft.text}</Text>
-          {draft.files.map((file) =>
-            file.kind === 'photo' ? (
-              <Artwork key={file.id} uri={file.uri} name="Photo preview" size={220} />
-            ) : (
-              <VideoPreview key={file.id} uri={file.uri} />
-            ),
-          )}
-          {draft.attachment ? <Text style={s.link}>{draft.attachment.label}</Text> : null}
+          {draft.files.map((file) => (
+            <Artwork key={file.id} uri={file.uri} name="Photo preview" size={220} />
+          ))}
+          {draft.attachment ? <PostAttachment attachment={draft.attachment} /> : null}
           <Text style={s.muted}>
-            {draft.files.length} {draft.kind === 'video' ? 'video' : 'photos'} ·{' '}
-            {draft.scenes.join(', ')}
+            {draft.files.length} photos · {draft.scenes.join(', ')}
           </Text>
         </View>
       ) : (
         <Field
           accessibilityLabel="Post text"
-          placeholder={
-            draft.kind === 'video' ? 'Add a caption…' : 'What have you been getting into?'
-          }
+          placeholder="What have you been getting into?"
           multiline
           maxLength={1000}
           value={draft.text}
@@ -327,18 +334,14 @@ function Composer({ uid }: { uid: string }) {
         />
       )}
       <Text style={s.muted}>{draft.text.length}/1000</Text>
+      <Text style={s.muted}>
+        Unsent posts stay here while the app is open. Closing the app may discard them.
+      </Text>
       {!draft.mediaLocked ? (
-        <Section title={draft.kind === 'video' ? 'Your clip' : 'Photos'}>
-          {draft.kind === 'video' ? <Text style={s.muted}>5–60 seconds · up to 150 MB</Text> : null}
+        <Section title="Photos">
           {draft.files.map((file, i) => (
             <View key={file.id} style={s.panel}>
-              {file.kind === 'photo' ? (
-                <Artwork uri={file.uri} name={`Photo ${i + 1}`} size={100} />
-              ) : (
-                <Text style={s.text}>
-                  Video selected · {(file.bytes / 1024 / 1024).toFixed(1)} MB
-                </Text>
-              )}
+              <Artwork uri={file.uri} name={`Photo ${i + 1}`} size={100} />
               <View style={s.row}>
                 <Button
                   quiet
@@ -363,10 +366,10 @@ function Composer({ uid }: { uid: string }) {
           ))}
           <Button
             quiet
-            disabled={busy || (draft.kind === 'post' && draft.files.length >= 4)}
+            disabled={busy || draft.files.length >= SOCIAL_LIMITS.photos}
             onPress={() => void choose()}
           >
-            {draft.kind === 'video' ? 'Choose video' : 'Add photos'}
+            Add photos
           </Button>
         </Section>
       ) : (
@@ -401,6 +404,7 @@ function Composer({ uid }: { uid: string }) {
               <Button
                 key={item.id}
                 quiet
+                disabled={busy}
                 onPress={() => {
                   update({
                     attachment: {
@@ -459,7 +463,7 @@ function Composer({ uid }: { uid: string }) {
       >
         Post
       </Button>
-      {busy ? (
+      {busy && progress.startsWith('Uploading') ? (
         <Button
           quiet
           onPress={() => {

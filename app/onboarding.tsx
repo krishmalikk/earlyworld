@@ -13,13 +13,13 @@ import {
   writeBatch,
   where,
 } from '@react-native-firebase/firestore';
-import { signOut } from '@react-native-firebase/auth';
+import { signOut } from '../src/lib/social-sign-in';
 import { useSession } from '../src/data/session';
 import { useCatalogPage } from '../src/data/catalog';
 import { useCollection } from '../src/data/listeners';
 import { useSaves } from '../src/data/saves';
 import { useLocal } from '../src/state/local';
-import { auth, call, db, errorMessage } from '../src/lib/firebase';
+import { call, db, errorMessage } from '../src/lib/firebase';
 import { pickProfilePhoto, uploadProfilePhoto } from '../src/data/profile-photo';
 import { reserveUsername } from '../src/data/actions';
 import type { Follow } from '../src/data/types';
@@ -48,7 +48,11 @@ export default function Onboarding() {
     [scenes, setScenes] = useState<string[]>([]),
     [artists, setArtists] = useState<string[]>([]),
     [error, setError] = useState<string | null>(null),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    // Google and Apple sign-ups arrive without a profile and answer these once here.
+    [age, setAge] = useState(''),
+    [us, setUs] = useState(false),
+    [agreed, setAgreed] = useState(false);
   const followRef = useMemo(
     () =>
       uid
@@ -116,12 +120,36 @@ export default function Onboarding() {
     return (
       <SafeAreaView style={[s.page, s.body]}>
         <Heading title="Create your profile" />
+        <Text style={s.muted}>Community access · US, ages 13+</Text>
+        <Field
+          accessibilityLabel="Your age"
+          placeholder="Your age"
+          value={age}
+          onChangeText={setAge}
+          keyboardType="number-pad"
+          maxLength={3}
+        />
+        <Chip label="I live in the United States" selected={us} onPress={() => setUs(!us)} />
+        <Button quiet onPress={() => router.push('/community')}>
+          Read community rules & privacy terms
+        </Button>
+        <Chip
+          label="I agree to the community rules and privacy terms"
+          selected={agreed}
+          onPress={() => setAgreed(!agreed)}
+        />
         <ErrorLine message={error} />
         <Button
           busy={busy}
+          disabled={!age || !us || !agreed}
           onPress={() =>
             act(async () => {
               if (!uid) return;
+              if (!/^\d{1,3}$/.test(age) || Number(age) < 13 || Number(age) > 120)
+                throw Error(
+                  'Account creation is currently available to US users aged 13 and older.',
+                );
+              await call('setSocialEligibility', { age: Number(age), country: 'US', agreed: true });
               await setDoc(doc(db, 'users', uid), {
                 username: '',
                 usernameLower: '',
@@ -139,7 +167,7 @@ export default function Onboarding() {
         >
           Continue
         </Button>
-        <Button quiet onPress={() => signOut(auth)}>
+        <Button quiet onPress={() => signOut()}>
           Sign out
         </Button>
       </SafeAreaView>

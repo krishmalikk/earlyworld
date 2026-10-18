@@ -8,8 +8,8 @@ import {
   reload,
   sendEmailVerification,
   sendPasswordResetEmail,
-  signOut,
 } from '@react-native-firebase/auth';
+import { signOut } from '../lib/social-sign-in';
 import { auth, call, errorMessage } from '../lib/firebase';
 import { useLocal } from '../state/local';
 import { useSocial, useSocialStatus } from '../data/social';
@@ -275,7 +275,7 @@ export function DeleteAccountControls() {
           busy={action.busy}
           onPress={() =>
             void action.run(async () => {
-              await signOut(auth);
+              await signOut();
               router.replace({ pathname: '/auth', params: { mode: 'signin' } });
             })
           }
@@ -317,7 +317,7 @@ export function DeleteAccountControls() {
                     try {
                       await clearComposerFiles();
                     } finally {
-                      if (auth.currentUser?.uid === uid) await signOut(auth);
+                      if (auth.currentUser?.uid === uid) await signOut();
                     }
                   }),
               },

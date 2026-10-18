@@ -10,6 +10,7 @@ export function startupRedirect({
 }): '/' | '/onboarding' | '/(tabs)/matches' | null {
   const landing = !group || group === 'index';
   if (!signedIn) return landing || group === 'auth' || group === 'community' ? null : '/';
-  if (!onboardingComplete) return group === 'onboarding' ? null : '/onboarding';
+  if (!onboardingComplete)
+    return group === 'onboarding' || group === 'community' ? null : '/onboarding';
   return landing || group === 'auth' || group === 'onboarding' ? '/(tabs)/matches' : null;
 }

@@ -9,12 +9,12 @@ no build step and no dependencies. It uses the app's real brand palette
 
 ## Files
 
-| File | Purpose |
-| --- | --- |
-| `index.html` | All page content and structure |
-| `styles.css` | Brand-matched styling, responsive layout, animations |
-| `script.js` | Nav, scroll-reveal, mobile menu, waitlist form handling |
-| `assets/earlyworld-logo.png` | App logo (copied from `assets/brand/`) |
+| File                                   | Purpose                                                            |
+| -------------------------------------- | ------------------------------------------------------------------ |
+| `index.html`                           | All page content and structure                                     |
+| `styles.css`                           | Brand-matched styling, responsive layout, animations               |
+| `script.js`                            | Nav, scroll-reveal, animated phone demo                            |
+| `assets/earlyworld-logo.png`           | App logo (copied from `assets/brand/`)                             |
 | `assets/fonts/Panchang-Variable.woff2` | Panchang display font for headings (variable 200-800, self-hosted) |
 
 Headings use **Panchang** (Fontshare); body copy stays on the system sans. The
@@ -38,7 +38,7 @@ cd website && python3 -m http.server 8080
 ## Page structure
 
 Hero, a short "what it is" statement, four plain feature blocks, how it works,
-FAQ, and an early-access email capture. Deliberately plain: no gradient text, no
+and FAQ. There is no waitlist or email collection. Deliberately plain: no gradient text, no
 glow blobs, no fabricated stats or testimonials, one accent colour used sparingly,
 system fonts.
 
@@ -59,8 +59,6 @@ single static frame under `prefers-reduced-motion`.
 
 ## Before going live
 
-- **Waitlist form** (`script.js`) is front-end only. Point it at a real endpoint
-  (Formspree, a Cloud Function, Mailchimp, etc.).
 - Add real **App Store / Play Store** links once the app is published.
 - Add **Privacy / Terms** pages and link them in the footer if you need them.
 

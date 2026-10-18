@@ -46,9 +46,7 @@ assert.equal(original?.creation, false, 'Run only while public creation is disab
 assert.equal(original?.publication, false, 'Run only while publication is disabled');
 const fixtures = [
   ['photo', 'photo.jpg', 'image/jpeg', 'ready'],
-  ['video', 'silent.mp4', 'video/mp4', 'ready'],
-  ['video', 'rotated.mp4', 'video/mp4', 'ready'],
-  ['video', 'too-short.mp4', 'video/mp4', 'failed'],
+  ['photo', 'not-an-image.jpg', 'image/jpeg', 'failed'],
 ].map(([kind, filename, mime, expected], i) => ({
   kind,
   filename,
@@ -71,7 +69,7 @@ try {
   await control.update({ uploads: true });
   for (const f of fixtures) {
     const content = {
-      kind: f.kind === 'photo' ? 'post' : 'video',
+      kind: 'post',
       text: '',
       scenes: [],
       attachment: null,
@@ -136,7 +134,7 @@ try {
     assert.equal(f.triggerObserved, true, 'Storage finalization did not advance the ticket');
     assert.equal((await db.doc(`posts/${f.id}`).get()).exists, false);
     if (f.expected === 'failed') {
-      assert.equal(media.errorCode, 'invalid-video');
+      assert.equal(media.errorCode, 'invalid-photo');
       results.push({ filename: f.filename, rejected: true });
       continue;
     }
@@ -147,25 +145,13 @@ try {
     );
     assert.ok([401, 403].includes(unsigned.status), 'Processed file must remain private');
     assert.equal((await bucket.file(media.path).exists())[0], false, 'Source must be removed');
-    const signed = await fetch(post.media[0].url, {
-      headers: f.kind === 'video' ? { Range: 'bytes=0-1023' } : {},
-    });
-    assert.equal(signed.status, f.kind === 'video' ? 206 : 200);
-    if (f.kind === 'video') {
-      const full = await fetch(post.media[0].url);
-      await writeFile(
-        `${fixtureDir}/processed-${f.filename}`,
-        Buffer.from(await full.arrayBuffer()),
-      );
-      const [low] = await bucket.file(media.lowPath).download();
-      await writeFile(`${fixtureDir}/low-${f.filename}`, low);
-    }
+    const signed = await fetch(post.media[0].url);
+    assert.equal(signed.status, 200);
     results.push({
       filename: f.filename,
       private: true,
-      range: signed.status,
+      status: signed.status,
       sourceRemoved: true,
-      duration: media.duration,
       width: media.width,
       height: media.height,
     });

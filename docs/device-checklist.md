@@ -2,7 +2,7 @@
 
 Run against your Firebase development project and installed EAS development build.
 
-For the October 1 social build, the former Add track tab is Create. Catalog creation checks below apply to administrator tooling. Profile text/photos, written reviews and comments now require approval; test their pending and approved states separately. Catalog tracks still have no player; approved user-uploaded videos do.
+For the October 1 social build, the former Add track tab is Create. Catalog creation checks below apply to administrator tooling. Profile text/photos, written reviews and comments now require approval; test their pending and approved states separately. Nothing plays in the app; video posts were removed on October 17.
 
 1. Sign up. Quit after username reservation. Reopen and verify onboarding resumes at photo/bio. Try claiming the same lowercase username from another account; it must fail inline.
 2. Skip photo/bio, select two scenes and five artists, and save five tracks. Complete onboarding. Matches is the first destination; Rotation remains empty. With another account sharing a rare save, verify the shared-track explanation appears after the fifth save or nightly refresh.
@@ -26,13 +26,13 @@ For the October 1 social build, the former Add track tab is Create. Catalog crea
 7. Switch accounts and confirm previous-account stars/drafts/favorites do not leak into the new account. Background/foreground rating histories and inspect listener cleanup.
 8. On a physical iPhone, test the software keyboard, long titles/reviews, larger text, VoiceOver reading of half stars, and favorite reorder controls.
 
-## Posts and uploaded videos (pending physical-device validation)
+## Posts (pending physical-device validation)
 
-1. Rebuild iOS and Android development apps for Expo Video. Confirm exactly five tabs and that `/add` redirects to Create. Keep public feature switches disabled; use explicitly authorized internal accounts.
-2. Test post text, ordered photos, each catalog attachment type, scenes and preview. Interrupt/cancel uploads, retry, restart the app, and switch accounts; files/drafts must survive failures without crossing accounts or duplicating submissions.
-3. Test silent, rotated, portrait, square and landscape clips, 5/60-second boundaries, oversized and invalid files. Confirm processing, pending and rejection states before any public visibility. Check sources are removed only after processing and ambiguous job dispatches do not duplicate processing charges.
-4. Approve/reject posts, complete videos, comments and text revisions. An approved edit retains its publication position and the old approved text remains visible until the revision is approved. Delete during processing and verify eventual object cleanup.
+1. Confirm exactly five tabs and that `/add` redirects to Create. Keep public feature switches disabled; use explicitly authorized internal accounts.
+2. Test post text, ordered photos, each catalog attachment type, scenes and preview. Interrupt/cancel uploads, retry, restart the app, and switch accounts; a failed upload must not cross accounts or duplicate the post.
+3. Test rotated, portrait, square and landscape photos, PNG and HEIC, oversized and invalid files. Confirm processing and failure states. Check sources are removed only after processing.
+4. Posts and comments publish without review. An edit keeps the post's publication position. Delete during processing and verify eventual object cleanup.
 5. Check Feed filters, Explore/Following/scene filters, profile sections and private bookmarks beyond 25 items. Block in both directions; alternate post/profile/review/discussion routes must not reveal blocked content.
-6. Rapidly swipe videos on a real iPhone and Android device. Verify one active audio source, at most one next clip prepared, session mute choice, contain framing, seeking, comment/navigation/background pauses, and recovery after private URLs expire.
-7. Test weak networks, large text, VoiceOver/TalkBack, keyboard dismissal, account switching and sustained scrolling memory. Confirm failures preserve drafts and never appear as successful publication.
+6. Tap photos in posts to open the full-screen viewer; check tall share cards show uncropped and photos recover after private URLs expire.
+7. Test weak networks, large text, VoiceOver/TalkBack, keyboard dismissal, account switching and sustained scrolling memory. Confirm failures never appear as successful publication.
 8. Verify recent-authentication account deletion, removal of authored media/content and counter reconciliation in a disposable test environment. Confirm budgets, operational alerts, moderator coverage and policy review before enabling the public audience.

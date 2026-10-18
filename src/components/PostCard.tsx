@@ -4,17 +4,13 @@ import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import type { SocialPost, CatalogAttachment } from '../../shared/social';
+import type { SocialPost } from '../../shared/social';
 import { fontSize, radius, space } from '../../shared/theme';
-import { Artwork, c, ErrorLine, s } from './ui';
+import { Artwork, Button, c, ErrorLine, s } from './ui';
 import { socialMutation, useSocial } from '../data/social';
 import { errorMessage } from '../lib/firebase';
 import { useLocal } from '../state/local';
-export function openAttachment(a: CatalogAttachment) {
-  if (a.kind === 'track') router.push(`/track/${a.id}`);
-  else if (a.kind === 'release') router.push(`/release/${a.id}`);
-  else router.push({ pathname: '/entity/[id]', params: { id: a.id, type: a.kind } });
-}
+import { PostAttachment } from './PostAttachment';
 export function PostCard({
   post,
   detail = false,
@@ -29,7 +25,10 @@ export function PostCard({
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
     // The whole photo, shown full screen; the feed crops photos to squares.
-    [viewing, setViewing] = useState<string | null>(null);
+    [viewing, setViewing] = useState<string | null>(null),
+    [photoState, setPhotoState] = useState<'loading' | 'ready' | 'error'>('loading'),
+    [photoAttempt, setPhotoAttempt] = useState(0),
+    [truncated, setTruncated] = useState(false);
   async function mutate(name: string, data: unknown) {
     setBusy(true);
     setError('');
@@ -42,7 +41,11 @@ export function PostCard({
       setBusy(false);
     }
   }
-  const open = () => router.push({ pathname: '/post/[id]', params: { id: post.id } });
+  const open = () =>
+    router.push({
+      pathname: '/post/[id]',
+      params: { id: post.id, ...(post.status !== 'published' ? { own: 'true' } : {}) },
+    });
   return (
     <View style={[s.panel, { gap: space[12] }]}>
       <View style={s.between}>
@@ -117,40 +120,46 @@ export function PostCard({
         <Pressable disabled={detail} onPress={open}>
           <Text
             style={[s.text, { fontSize: fontSize.trackTitle }]}
+            onTextLayout={(event) => {
+              if (!detail && event.nativeEvent.lines.length >= 6) setTruncated(true);
+            }}
             numberOfLines={detail ? undefined : 6}
           >
             {post.text}
           </Text>
         </Pressable>
       ) : null}
+      {!detail && truncated ? (
+        <Button quiet onPress={open}>
+          Read more
+        </Button>
+      ) : null}
+      {post.attachment ? <PostAttachment attachment={post.attachment} /> : null}
       {post.media.length ? (
-        <View style={{ gap: space[8] }}>
+        <View style={{ gap: space[8], flexDirection: 'row', flexWrap: 'wrap' }}>
           {post.media.map((media) => (
             <Pressable
               key={media.id}
               accessibilityRole="button"
-              accessibilityLabel={post.kind === 'video' ? 'Watch video' : 'View full photo'}
-              onPress={() =>
-                post.kind === 'video'
-                  ? router.push({ pathname: '/videos', params: { start: post.id } })
-                  : setViewing(media.url || media.thumbnailUrl || null)
-              }
-              style={{ borderRadius: radius.large, overflow: 'hidden' }}
+              accessibilityLabel="View full photo"
+              disabled={media.status !== 'ready'}
+              onPress={() => {
+                setPhotoState('loading');
+                setViewing(media.url || media.thumbnailUrl || null);
+              }}
+              style={{
+                width: post.media.length > 1 ? '48%' : '100%',
+                borderRadius: radius.large,
+                overflow: 'hidden',
+              }}
             >
-              <Artwork
-                uri={
-                  post.kind === 'video'
-                    ? media.thumbnailUrl || media.url
-                    : media.url || media.thumbnailUrl
-                }
-                name={post.kind === 'video' ? 'Video' : 'Post photo'}
-                size="fill"
-              />
-              {post.kind === 'video' ? (
-                <View style={{ position: 'absolute', left: '42%', top: '42%' }}>
-                  <Ionicons name="play-circle" size={56} color={c.text} />
-                </View>
-              ) : null}
+              {media.status === 'ready' ? (
+                <Artwork uri={media.url || media.thumbnailUrl} name="Post photo" size="fill" />
+              ) : (
+                <Text style={[s.muted, { padding: space[16] }]}>
+                  {media.status === 'failed' ? 'Photo could not be processed' : 'Processing photo…'}
+                </Text>
+              )}
             </Pressable>
           ))}
         </View>
@@ -223,8 +232,10 @@ export function PostCard({
           {post.status === 'pending'
             ? 'Publishing'
             : post.status === 'processing'
-              ? 'Processing media'
-              : post.status}
+              ? 'Processing photos · Only you can see this for now'
+              : post.status === 'draft' || post.status === 'rejected'
+                ? 'Couldn’t publish'
+                : post.status}
         </Text>
       )}
       <ErrorLine message={error} />
@@ -245,8 +256,33 @@ export function PostCard({
           >
             <Ionicons name="close" size={28} color={c.text} />
           </Pressable>
+          {photoState === 'loading' && viewing ? (
+            <Text accessibilityLiveRegion="polite" style={s.muted}>
+              Loading photo…
+            </Text>
+          ) : null}
+          {photoState === 'error' ? (
+            <View style={s.panel}>
+              <Text style={s.error}>
+                Could not load this photo. Check your connection or reopen the post to refresh the
+                photo link.
+              </Text>
+              <Button
+                quiet
+                onPress={() => {
+                  setPhotoState('loading');
+                  setPhotoAttempt((n) => n + 1);
+                }}
+              >
+                Retry photo
+              </Button>
+            </View>
+          ) : null}
           {viewing ? (
             <Image
+              key={`${viewing}:${photoAttempt}`}
+              onLoad={() => setPhotoState('ready')}
+              onError={() => setPhotoState('error')}
               source={{ uri: viewing }}
               contentFit="contain"
               accessibilityLabel="Post photo"

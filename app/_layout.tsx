@@ -21,12 +21,12 @@ function Navigation() {
   const router = useRouter(),
     segments = useSegments(),
     uid = useLocal((s) => s.uid),
-    { user, loading } = useSession();
+    { user, loading, error } = useSession();
   const group = segments[0];
   const { id: linkedId } = useGlobalSearchParams<{ id?: string }>();
   const pendingPostId = useLocal((s) => s.pendingPostId);
   useEffect(() => {
-    if (loading) return;
+    if (loading || (uid && error)) return;
     const destination = startupRedirect({
       signedIn: !!uid,
       onboardingComplete: !!user?.onboardingComplete,
@@ -43,7 +43,7 @@ function Navigation() {
       useLocal.getState().setPendingPostId(null);
       router.replace(`/post/${pendingPostId}`);
     } else if (destination) router.replace(destination);
-  }, [uid, user?.onboardingComplete, loading, group, router, linkedId, pendingPostId]);
+  }, [uid, user?.onboardingComplete, loading, error, group, router, linkedId, pendingPostId]);
   useEffect(() => {
     logScreenView(getAnalytics(), { screen_name: segments.join('/') || 'index' }).catch(report);
   }, [segments.join('/')]);
@@ -63,7 +63,6 @@ function Navigation() {
       <Stack.Screen name="onboarding" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="post/[id]" options={{ title: 'Post' }} />
-      <Stack.Screen name="videos" options={{ headerShown: false }} />
       <Stack.Screen name="settings" options={{ headerShown: false }} />
       <Stack.Screen name="community" options={{ title: 'Community' }} />
       <Stack.Screen name="release/[id]" options={{ title: 'Release' }} />
@@ -71,6 +70,7 @@ function Navigation() {
       <Stack.Screen name="track/[id]" options={{ title: 'Track' }} />
       <Stack.Screen name="entity/[id]" options={{ title: 'Artist & producer' }} />
       <Stack.Screen name="user/ratings/[id]" options={{ title: 'Ratings & reviews' }} />
+      <Stack.Screen name="user/saves/[id]" options={{ title: 'Saved tracks' }} />
       <Stack.Screen name="user/[id]" options={{ title: 'Profile' }} />
       <Stack.Screen name="share" options={{ title: 'Share', presentation: 'modal' }} />
       <Stack.Screen name="edit-profile" options={{ title: 'Edit profile' }} />

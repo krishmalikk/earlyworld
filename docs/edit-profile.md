@@ -31,7 +31,7 @@ The pipeline already exists for onboarding step 2 (`app/onboarding.tsx`). Edit p
 - **One submission:** a new submission replaces a revision still waiting on its photo. The screen prefills the bio from that revision when there is one, otherwise the published bio. A bio-only change resends the processing photo, so neither change is lost.
 - **Saving:** scenes are written directly to `users/{uid}`; the photo and bio go to `submitProfileText` together. The Save changes button stays disabled with fewer than two scenes or no changes.
 - **Processing state:** while a photo processes, Edit profile says so and the profile's submissions list shows "Photo & bio update · Processing". `readCommunity` (`textSubmissions`) also returns a five-minute `photoUrl` for a pending revision whose photo is ready. A failed photo's reason shows on Edit profile.
-- **Uploads switch:** `getSocialStatus` now returns `uploads`. While it is off, the screen hides Change photo and says photo changes open when community uploads are enabled. Production `uploads` was turned on 2026-10-12. Post photos and videos also need the `creation` switch (see [posts and videos](posts-and-videos.md)).
+- **Uploads switch:** `getSocialStatus` now returns `uploads`. While it is off, the screen hides Change photo and says photo changes open when community uploads are enabled. Production `uploads` was turned on 2026-10-12. Post photos need the same switch (see [posts](posts.md)).
 - **Deploy:** the `uploads` status field and the pending-photo preview are Functions changes. `getSocialStatus` and `readCommunity` were deployed to `earlyworld-6831c` on 2026-10-12 from the uncommitted `edit-profile` branch; redeploy from `main` after merging.
 
 ## Limitations

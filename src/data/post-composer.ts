@@ -3,7 +3,7 @@ import type { PostContent } from '../../shared/social';
 export type ComposerFile = {
   id: string;
   uri: string;
-  kind: 'photo' | 'video';
+  kind: 'photo';
   mime: string;
   bytes: number;
   uploaded?: boolean;

@@ -1,6 +1,6 @@
 # Verification — 2026-09-22
 
-Latest social implementation and October 1 deployment evidence: [posts and videos](posts-and-videos.md#validation-record). The older checkpoints below remain historical; they do not establish public social-launch readiness.
+Latest social implementation and October 1 deployment evidence: [posts](posts.md#validation-record). The older checkpoints below remain historical; they do not establish public social-launch readiness.
 
 Completed locally:
 

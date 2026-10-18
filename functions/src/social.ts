@@ -31,7 +31,6 @@ export const getSocialStatus = onCall(async (r) => {
   return {
     creation: c.admin || c.flags.creation === true,
     publication: c.flags.publication === true,
-    playback: c.flags.playback === true,
     uploads: c.flags.uploads === true,
     admin: c.admin,
     eligible: c.account.eligible === true,
@@ -92,7 +91,7 @@ export const savePostDraft = onCall(async (r) => {
           !m.exists ||
           m.data()!.uid !== uid ||
           m.data()!.postId !== id ||
-          m.data()!.kind !== (content.kind === 'video' ? 'video' : 'photo'),
+          m.data()!.kind !== 'photo',
       )
     )
       throw new HttpsError('invalid-argument', 'Choose your own uploaded media.');
@@ -134,14 +133,12 @@ export const authorizePostUpload = onCall(async (r) => {
   const bytes = r.data?.bytes,
     mime = r.data?.mime;
   if (
-    !['photo', 'video'].includes(kind) ||
+    kind !== 'photo' ||
     !Number.isInteger(bytes) ||
     bytes <= 0 ||
-    bytes > (kind === 'video' ? SOCIAL_LIMITS.videoBytes : SOCIAL_LIMITS.photoBytes) ||
+    bytes > SOCIAL_LIMITS.photoBytes ||
     typeof mime !== 'string' ||
-    !(kind === 'video' ? /^video\/(mp4|quicktime)$/ : /^image\/(jpeg|png|webp|heic|heif)$/).test(
-      mime,
-    )
+    !/^image\/(jpeg|png|webp|heic|heif)$/.test(mime)
   )
     throw new HttpsError('invalid-argument', 'Unsupported file or file too large.');
   const path = `social-staging/${uid}/${postId}/${id}`;
@@ -159,12 +156,7 @@ export const authorizePostUpload = onCall(async (r) => {
         throw new HttpsError('permission-denied', 'Upload unavailable.');
       return;
     }
-    const charge = await quota(
-      tx,
-      uid,
-      kind === 'video' ? 'videoUpload' : 'photoUpload',
-      kind === 'video' ? SOCIAL_LIMITS.videosDaily : 40,
-    );
+    const charge = await quota(tx, uid, 'photoUpload', 40);
     charge();
     tx.create(ref, {
       uid,
@@ -232,22 +224,16 @@ export const getPost = onCall(async (r) => {
     if (!draft.exists || draft.data()!.uid !== c.uid || draft.data()!.status === 'deleted')
       throw new HttpsError('not-found', 'Draft unavailable.');
     const pub = await db.doc(`posts/${id}`).get();
-    return postDTO(
-      id,
-      { ...draft.data()!, publishedAt: pub.data()?.publishedAt },
-      c.uid,
-      c.flags.playback === true || c.admin,
-      true,
-    );
+    return postDTO(id, { ...draft.data()!, publishedAt: pub.data()?.publishedAt }, c.uid, true);
   }
   const d = await visiblePost(c.uid, id);
-  return postDTO(id, d.data()!, c.uid, c.flags.playback === true);
+  return postDTO(id, d.data()!, c.uid);
 });
 export const listPosts = onCall(async (r) => {
   const c = await socialContext(r),
     mode = r.data?.mode || 'explore';
   await rateLimit(c.uid, 'socialRead', 600);
-  if (!['explore', 'following', 'profile', 'own', 'bookmarks'].includes(mode))
+  if (!['explore', 'following', 'profile', 'own', 'submissions', 'bookmarks'].includes(mode))
     throw new HttpsError('invalid-argument', 'Unknown feed.');
   if (mode === 'bookmarks') {
     let bookmarks: Query = db
@@ -264,7 +250,7 @@ export const listPosts = onCall(async (r) => {
       const account = (await db.doc(`_socialAccounts/${p.data()!.uid}`).get()).data();
       if ((await blocked(c.uid, p.data()!.uid)) || account?.suspended || account?.deleting)
         continue;
-      items.push(await postDTO(p.id, p.data()!, c.uid, c.flags.playback === true));
+      items.push(await postDTO(p.id, p.data()!, c.uid));
     }
     const last = docs.docs.at(-1);
     return {
@@ -272,17 +258,12 @@ export const listPosts = onCall(async (r) => {
       cursor: docs.size === 25 ? makeCursor(last!.data().createdAt, last!.id) : null,
     };
   }
-  const owner = mode === 'own';
+  const owner = mode === 'own' || mode === 'submissions';
   const field = owner ? 'updatedAt' : 'publishedAt';
   let q: Query = db.collection(owner ? '_postDrafts' : 'posts');
   if (owner) q = q.where('uid', '==', c.uid);
   else q = q.where('status', '==', 'published');
   if (mode === 'profile') q = q.where('uid', '==', socialId(r.data?.uid));
-  if (r.data?.kind) {
-    if (!['post', 'video'].includes(r.data.kind))
-      throw new HttpsError('invalid-argument', 'Invalid type.');
-    q = q.where('kind', '==', r.data.kind);
-  }
   if (r.data?.scene)
     q = q.where('scenes', 'array-contains', requiredText(r.data.scene, 'scene', 80));
   q = q.orderBy(field, 'desc').orderBy(FieldPath.documentId(), 'desc');
@@ -298,6 +279,8 @@ export const listPosts = onCall(async (r) => {
     const p = d.data();
     scanned = makeCursor(p[field], d.id);
     if (p.purpose === 'profile') continue;
+    if (mode === 'submissions' && (p.status === 'published' || (p.status === 'draft' && !p.reason)))
+      continue;
     if (p.status === 'deleted' || (!owner && (await blocked(c.uid, p.uid)))) continue;
     const account = (await db.doc(`_socialAccounts/${p.uid}`).get()).data();
     if (account?.suspended || account?.deleting) continue;
@@ -312,7 +295,7 @@ export const listPosts = onCall(async (r) => {
       !(await db.doc(`users/${c.uid}/postBookmarks/${d.id}`).get()).exists
     )
       continue;
-    items.push(await postDTO(d.id, p, c.uid, c.flags.playback === true || c.admin, owner));
+    items.push(await postDTO(d.id, p, c.uid, owner));
     if (items.length === 25) break;
   }
   return {

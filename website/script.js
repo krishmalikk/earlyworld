@@ -5,10 +5,10 @@
 // the topographic "sound wave" field. earlyworld's logo is a waveform, so the
 // motion is on-theme rather than decorative filler.
 (function () {
-  const canvas = document.getElementById("waves");
+  const canvas = document.getElementById('waves');
   if (!canvas) return;
-  const ctx = canvas.getContext("2d");
-  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const ctx = canvas.getContext('2d');
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   let w = 0;
   let h = 0;
@@ -22,16 +22,16 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   };
   resize();
-  window.addEventListener("resize", resize);
+  window.addEventListener('resize', resize);
 
   const gradient = () => {
     const g = ctx.createLinearGradient(0, 0, w, 0);
-    g.addColorStop(0.0, "rgba(255,126,182,0)");
-    g.addColorStop(0.18, "rgba(255,126,182,0.55)"); // pink
-    g.addColorStop(0.42, "rgba(169,120,255,0.6)"); // violet
-    g.addColorStop(0.64, "rgba(120,150,255,0.6)"); // periwinkle (brand)
-    g.addColorStop(0.85, "rgba(90,220,220,0.55)"); // teal
-    g.addColorStop(1.0, "rgba(90,220,220,0)");
+    g.addColorStop(0.0, 'rgba(255,126,182,0)');
+    g.addColorStop(0.18, 'rgba(255,126,182,0.55)'); // pink
+    g.addColorStop(0.42, 'rgba(169,120,255,0.6)'); // violet
+    g.addColorStop(0.64, 'rgba(120,150,255,0.6)'); // periwinkle (brand)
+    g.addColorStop(0.85, 'rgba(90,220,220,0.55)'); // teal
+    g.addColorStop(1.0, 'rgba(90,220,220,0)');
     return g;
   };
 
@@ -74,49 +74,49 @@
 // badge, and slide up a match when the save is a rare one. Honest to the app:
 // it never implies in-app playback, only discovery, saving, and matching.
 (function () {
-  const phone = document.getElementById("phone");
+  const phone = document.getElementById('phone');
   if (!phone) return;
 
-  const rows = Array.from(phone.querySelectorAll(".prow"));
-  const toast = document.getElementById("ptoast");
-  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const rows = Array.from(phone.querySelectorAll('.prow'));
+  const toast = document.getElementById('ptoast');
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // Entrance: rows fade in once the hero is on screen.
-  requestAnimationFrame(() => phone.classList.add("ready"));
+  requestAnimationFrame(() => phone.classList.add('ready'));
 
   if (reduce) {
     // Static, legible resting state for reduced-motion users.
-    rows[0].classList.add("focus");
+    rows[0].classList.add('focus');
     return;
   }
 
   let i = 0;
   const step = () => {
-    rows.forEach((r) => r.classList.remove("focus", "saved"));
-    toast.classList.remove("show");
+    rows.forEach((r) => r.classList.remove('focus', 'saved'));
+    toast.classList.remove('show');
 
     const row = rows[i];
-    row.classList.add("focus");
+    row.classList.add('focus');
 
     // Save it a beat after it gets focus.
     setTimeout(() => {
-      row.classList.add("saved");
-      const c = row.querySelector(".count");
+      row.classList.add('saved');
+      const c = row.querySelector('.count');
       c.textContent = Number(c.dataset.n) + 1;
     }, 850);
 
     // A rare save surfaces a match.
     setTimeout(() => {
       if (row.dataset.rare) {
-        toast.querySelector(".who").textContent = row.dataset.match;
-        toast.querySelector(".trk").textContent = row.querySelector("b").textContent;
-        toast.classList.add("show");
+        toast.querySelector('.who').textContent = row.dataset.match;
+        toast.querySelector('.trk').textContent = row.querySelector('b').textContent;
+        toast.classList.add('show');
       }
     }, 1500);
 
     // Reset the count for next loop so it doesn't climb forever.
     setTimeout(() => {
-      const c = row.querySelector(".count");
+      const c = row.querySelector('.count');
       c.textContent = c.dataset.n;
     }, 3100);
 
@@ -127,21 +127,4 @@
   setInterval(step, 3300);
 })();
 
-// --- Waitlist form ---
-// Front-end only for now; point it at a real endpoint before launch.
-const form = document.getElementById("waitlist");
-const note = document.getElementById("formNote");
-form.addEventListener("submit", (e) => {
-  e.preventDefault();
-  const email = form.email.value.trim();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    note.textContent = "That email doesn't look right. Try again.";
-    note.className = "note err";
-    return;
-  }
-  note.textContent = "You're on the list. We'll be in touch when a spot opens.";
-  note.className = "note ok";
-  form.reset();
-});
-
-document.getElementById("year").textContent = new Date().getFullYear();
+document.getElementById('year').textContent = new Date().getFullYear();

@@ -2,7 +2,7 @@ import { useCommunity } from '../data/community';
 import { fontSize, fontWeight, lineHeight, radius, space, tracking } from '../../shared/theme';
 import { useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
-import { collection, doc, limit, orderBy, query } from '@react-native-firebase/firestore';
+import { doc } from '@react-native-firebase/firestore';
 import { router } from 'expo-router';
 import { useRatingList } from '../data/ratings';
 import { HighestRated } from './HighestRated';
@@ -27,9 +27,6 @@ export function Profile({ uid }: { uid: string }) {
   const [error, setError] = useState<string | null>(null);
   const refs = useMemo(
     () => ({
-      user: doc(db, 'users', uid),
-      rotation: query(collection(db, 'users', uid, 'rotation'), orderBy('score', 'desc')),
-      saves: query(collection(db, 'users', uid, 'saves'), orderBy('savedAt', 'desc'), limit(30)),
       follow: currentUid ? doc(db, 'users', currentUid, 'following', uid) : null,
     }),
     [uid, currentUid],
@@ -37,7 +34,7 @@ export function Profile({ uid }: { uid: string }) {
   const profiles = useCommunity<User>({ kind: 'profile', uid }),
     user = { data: profiles.data[0], error: profiles.error },
     rotation = useCommunity<Rotation>({ kind: 'rotation', uid }),
-    saves = useCommunity<Save>({ kind: 'saves', uid }, 30),
+    saves = useCommunity<Save>({ kind: 'saves', uid }, 5),
     following = useDocument<Follow>(refs.follow);
   const catalog = useCatalogIds(
     'tracks',
@@ -288,7 +285,18 @@ export function Profile({ uid }: { uid: string }) {
             </Text>
           );
         })}
-        {!saves.data.length ? <Text style={s.muted}>Nothing saved yet.</Text> : null}
+        {saves.loading && !saves.data.length ? (
+          <Text style={s.muted}>Loading saved tracks…</Text>
+        ) : null}
+        {!saves.loading && !saves.error && !saves.data.length ? (
+          <Text style={s.muted}>Nothing saved yet.</Text>
+        ) : null}
+        <Button
+          quiet
+          onPress={() => router.push({ pathname: '/user/saves/[id]', params: { id: uid } })}
+        >
+          View all saved tracks
+        </Button>
       </Section>
       <Section title="Rotation">
         {certified.length ? (
