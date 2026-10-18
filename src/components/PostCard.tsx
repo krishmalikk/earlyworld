@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { SocialPost } from '../../shared/social';
 import { fontSize, radius, space } from '../../shared/theme';
 import { Artwork, Button, c, ErrorLine, s } from './ui';
-import { socialMutation, useSocial } from '../data/social';
+import { socialMutation, useSocial, usePrivateMedia } from '../data/social';
 import { errorMessage } from '../lib/firebase';
 import { useLocal } from '../state/local';
 import { PostAttachment } from './PostAttachment';
@@ -29,6 +29,9 @@ export function PostCard({
     [photoState, setPhotoState] = useState<'loading' | 'ready' | 'error'>('loading'),
     [photoAttempt, setPhotoAttempt] = useState(0),
     [truncated, setTruncated] = useState(false);
+  const viewedMedia = post.media.find((media) => media.id === viewing);
+  const viewingUri = viewedMedia?.url || viewedMedia?.thumbnailUrl;
+  const recoverMedia = usePrivateMedia(viewingUri);
   async function mutate(name: string, data: unknown) {
     setBusy(true);
     setError('');
@@ -145,7 +148,7 @@ export function PostCard({
               disabled={media.status !== 'ready'}
               onPress={() => {
                 setPhotoState('loading');
-                setViewing(media.url || media.thumbnailUrl || null);
+                setViewing(media.id);
               }}
               style={{
                 width: post.media.length > 1 ? '48%' : '100%',
@@ -264,14 +267,14 @@ export function PostCard({
           {photoState === 'error' ? (
             <View style={s.panel}>
               <Text style={s.error}>
-                Could not load this photo. Check your connection or reopen the post to refresh the
-                photo link.
+                Could not load this photo. Check your connection and try again.
               </Text>
               <Button
                 quiet
                 onPress={() => {
                   setPhotoState('loading');
                   setPhotoAttempt((n) => n + 1);
+                  recoverMedia();
                 }}
               >
                 Retry photo
@@ -280,10 +283,13 @@ export function PostCard({
           ) : null}
           {viewing ? (
             <Image
-              key={`${viewing}:${photoAttempt}`}
+              key={`${viewingUri}:${photoAttempt}`}
               onLoad={() => setPhotoState('ready')}
-              onError={() => setPhotoState('error')}
-              source={{ uri: viewing }}
+              onError={() => {
+                setPhotoState('error');
+                recoverMedia();
+              }}
+              source={{ uri: viewingUri }}
               contentFit="contain"
               accessibilityLabel="Post photo"
               style={{ flex: 1, marginBottom: space[16] }}

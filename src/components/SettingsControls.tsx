@@ -9,7 +9,7 @@ import {
   sendEmailVerification,
   sendPasswordResetEmail,
 } from '@react-native-firebase/auth';
-import { signOut } from '../lib/social-sign-in';
+import { signOut, prepareAccountDeletion, SignInCancelled } from '../lib/social-sign-in';
 import { auth, call, errorMessage } from '../lib/firebase';
 import { useLocal } from '../state/local';
 import { useSocial, useSocialStatus } from '../data/social';
@@ -301,8 +301,10 @@ export function DeleteAccountControls() {
                     const uid = auth.currentUser?.uid;
                     if (!uid) throw new Error('Sign in again to continue.');
                     try {
+                      await prepareAccountDeletion(uid);
                       await call('requestAccountDeletion');
                     } catch (e) {
+                      if (e instanceof SignInCancelled) return;
                       if (
                         auth.currentUser?.uid === uid &&
                         typeof e === 'object' &&
@@ -315,7 +317,7 @@ export function DeleteAccountControls() {
                     }
                     // An accepted deletion must still sign out if local file cleanup fails.
                     try {
-                      await clearComposerFiles();
+                      if (auth.currentUser?.uid === uid) await clearComposerFiles();
                     } finally {
                       if (auth.currentUser?.uid === uid) await signOut();
                     }
@@ -326,6 +328,23 @@ export function DeleteAccountControls() {
         }
       >
         Delete account
+      </Button>
+      <Button
+        quiet
+        busy={action.busy}
+        onPress={() =>
+          void action.run(async () => {
+            try {
+              await Linking.openURL('https://earlyworld-6831c.web.app/delete-account.html');
+            } catch {
+              throw Error(
+                'Could not open the page. Email earlyworldofficial@gmail.com to request account deletion.',
+              );
+            }
+          })
+        }
+      >
+        Request deletion on the web
       </Button>
       {needsSignIn ? (
         <Text style={s.muted}>

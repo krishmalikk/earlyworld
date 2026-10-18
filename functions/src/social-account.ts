@@ -3,12 +3,17 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { getAuth } from 'firebase-admin/auth';
 import { getStorage } from 'firebase-admin/storage';
 import { db, FieldValue, hash, authUid, rateLimit } from './core';
-import { socialContext, socialId, quota, Timestamp } from './social-core';
+import { socialContext, socialId, quota, Timestamp, touchSocial } from './social-core';
 import { publishSubmission } from './social-publish';
 export const requestAccountDeletion = onCall(async (r) => {
   const uid = authUid(r);
   const authenticated = Number(r.auth?.token.auth_time || 0) * 1000;
-  if (Date.now() - authenticated > 5 * 60000)
+  if (
+    !Number.isFinite(authenticated) ||
+    authenticated <= 0 ||
+    authenticated > Date.now() + 60000 ||
+    Date.now() - authenticated > 5 * 60000
+  )
     throw new HttpsError(
       'unauthenticated',
       'Sign out and sign in again before deleting your account.',
@@ -19,6 +24,7 @@ export const requestAccountDeletion = onCall(async (r) => {
     if (old.exists) return;
     tx.set(db.doc(`_socialAccounts/${uid}`), { deleting: true, suspended: true }, { merge: true });
     tx.create(ref, { stage: 0, complete: false, createdAt: FieldValue.serverTimestamp() });
+    touchSocial(tx, uid);
   });
   return { queued: true };
 });
@@ -86,7 +92,7 @@ export async function deleteAccountBatch(uid: string) {
       }
       await doc.ref.delete();
     }
-    if (docs.empty || collection === '_socialMedia') await ref.update({ stage: stage + 1 });
+    if (docs.empty) await ref.update({ stage: stage + 1 });
     return;
   }
   if (stage === collections.length) {
@@ -148,7 +154,8 @@ export async function deleteAccountBatch(uid: string) {
     .catch((e) => {
       if (e.code !== 'auth/user-not-found') throw e;
     });
-  await db.doc(`_socialAccounts/${uid}`).delete();
+  // Keep only a deletion marker: issued ID tokens can outlive deletion of the Auth user.
+  await db.doc(`_socialAccounts/${uid}`).set({ deleting: true, suspended: true });
   await ref.update({ complete: true, completedAt: FieldValue.serverTimestamp() });
 }
 export const processAccountDeletions = onSchedule(

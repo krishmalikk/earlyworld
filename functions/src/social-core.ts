@@ -158,12 +158,26 @@ export async function postDTO(
 }
 export function readCursor(value: unknown): [Timestamp, string] | null {
   if (value == null) return null;
-  if (typeof value !== 'string' || !/^\d{1,16}:[a-zA-Z0-9_-]{1,128}$/.test(value))
+  if (typeof value !== 'string') throw new HttpsError('invalid-argument', 'Invalid page cursor.');
+  const exact = /^v2:(\d{1,12}):(\d{1,9}):([a-zA-Z0-9_-]{1,128})$/.exec(value);
+  if (exact) {
+    try {
+      return [new Timestamp(Number(exact[1]), Number(exact[2])), exact[3]];
+    } catch {
+      throw new HttpsError('invalid-argument', 'Invalid page cursor.');
+    }
+  }
+  // Existing clients and saved cursors can still use the original millisecond form.
+  if (!/^\d{1,16}(?:\.\d+)?:[a-zA-Z0-9_-]{1,128}$/.test(value))
     throw new HttpsError('invalid-argument', 'Invalid page cursor.');
   const [at, id] = value.split(':');
-  return [Timestamp.fromMillis(Number(at)), id];
+  try {
+    return [Timestamp.fromMillis(Number(at)), id];
+  } catch {
+    throw new HttpsError('invalid-argument', 'Invalid page cursor.');
+  }
 }
-export const makeCursor = (at: Timestamp, id: string) => `${at.toMillis()}:${id}`;
+export const makeCursor = (at: Timestamp, id: string) => `v2:${at.seconds}:${at.nanoseconds}:${id}`;
 
 export async function followedPage(
   uid: string,
@@ -184,14 +198,19 @@ export async function followedPage(
     if (cursor) query = query.startAfter(...cursor);
     pages.push(await query.limit(25).get());
   }
-  const docs = pages
+  // Stop at the first full group's scan boundary: its unseen rows may precede
+  // older rows from another group, including after visibility filtering.
+  const boundaries = new Set(pages.filter((p) => p.size === 25).map((p) => p.docs[24].ref.path));
+  const merged = pages
     .flatMap((p) => p.docs)
     .sort(
       (a, b) =>
-        (b.data()[timeField]?.toMillis() || 0) - (a.data()[timeField]?.toMillis() || 0) ||
-        b.id.localeCompare(a.id),
-    )
-    .slice(0, 250);
+        (b.data()[timeField]?.seconds || 0) - (a.data()[timeField]?.seconds || 0) ||
+        (b.data()[timeField]?.nanoseconds || 0) - (a.data()[timeField]?.nanoseconds || 0) ||
+        (a.id < b.id ? 1 : a.id > b.id ? -1 : 0),
+    );
+  const boundary = merged.findIndex((d) => boundaries.has(d.ref.path));
+  const docs = merged.slice(0, Math.min(250, boundary < 0 ? merged.length : boundary + 1));
   return {
     docs,
     size:

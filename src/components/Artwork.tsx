@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Image } from 'expo-image';
 import { PixelRatio, StyleSheet, Text, View } from 'react-native';
 import { colors, fontFamily, fontSize, imageDefaults } from '../../shared/theme';
+import { usePrivateMedia } from '../data/social';
 import { artworkSources } from '../../shared/artwork';
 
 /** Shared covers and avatars, including an initials fallback for missing or failed URLs. */
@@ -14,6 +15,7 @@ export function Artwork({
   name: string;
   size?: number | 'fill';
 }) {
+  const recoverMedia = usePrivateMedia(uri);
   const [width, setWidth] = useState(0);
   const candidates = artworkSources(uri, (size === 'fill' ? width : size) * PixelRatio.get());
   const sourceKey = candidates.join('|');
@@ -38,7 +40,10 @@ export function Artwork({
           recyclingKey={imageUri}
           accessible={false}
           style={StyleSheet.absoluteFill}
-          onError={() => setFailure({ key: sourceKey, index: index + 1 })}
+          onError={() => {
+            recoverMedia();
+            setFailure({ key: sourceKey, index: index + 1 });
+          }}
         />
       ) : (
         <Text

@@ -30,8 +30,9 @@ export function useForYou(enabled = true) {
   latest.current = key;
   const load = useCallback(
     async (cursor: string | null) => {
-      const page = await call<{ items: ForYouItem[]; cursor: number | null }>('readForYou', {
-        cursor: cursor == null ? null : Number(cursor),
+      const page = await call<{ items: ForYouItem[]; cursor: string | null }>('readForYou', {
+        cursor,
+        cursorVersion: 2,
       });
       const items = page.items.map((item) => hydrate(item) as ForYouItem);
       if (latest.current === key)

@@ -13,6 +13,7 @@ import { call, db, errorMessage } from '../lib/firebase';
 import { useLocal } from '../state/local';
 import { useDocument, useForeground } from './listeners';
 import { useCursorPages } from './useCursorPages';
+import { MediaRenewals } from '../../shared/media-renewal';
 import type { SocialPage, SocialPost } from '../../shared/social';
 export type SocialStatus = {
   creation: boolean;
@@ -26,6 +27,10 @@ export type SocialStatus = {
 const Context = createContext({
   version: 0,
   changed: () => {},
+  registerMedia:
+    (_uri: string): (() => void) =>
+    () => {},
+  mediaFailed: (_uri: string) => {},
 });
 export function SocialProvider({ children }: { children: React.ReactNode }) {
   const uid = useLocal((s) => s.uid);
@@ -41,11 +46,40 @@ function AccountSocial({ uid, children }: { uid: string | null; children: React.
   const global = useDocument(globalRef),
     own = useDocument(ownRef);
   const [version, setVersion] = useState(0);
+  const active = useForeground();
+  const renewals = useMemo(() => new MediaRenewals(), [uid]);
+  const changed = useCallback(() => setVersion((v) => v + 1), []);
+  const registerMedia = useCallback((uri: string) => renewals.register(uri), [renewals]);
+  const mediaFailed = useCallback(
+    (uri: string) => {
+      if (uid && active && renewals.due(Date.now(), uri)) changed();
+    },
+    [uid, active, renewals, changed],
+  );
+  useEffect(() => {
+    if (!uid || !active) return;
+    const check = () => {
+      if (renewals.due(Date.now())) changed();
+    };
+    check();
+    const timer = setInterval(check, 15000);
+    return () => clearInterval(timer);
+  }, [uid, active, renewals, changed]);
   useEffect(() => setVersion((v) => v + 1), [global.data, own.data]);
-  const value = useMemo(() => ({ version, changed: () => setVersion((v) => v + 1) }), [version]);
+  const value = useMemo(
+    () => ({ version, changed, registerMedia, mediaFailed }),
+    [version, changed, registerMedia, mediaFailed],
+  );
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 export const useSocial = () => useContext(Context);
+export function usePrivateMedia(uri: string | null | undefined) {
+  const { registerMedia, mediaFailed } = useSocial();
+  useEffect(() => (uri ? registerMedia(uri) : undefined), [uri, registerMedia]);
+  return useCallback(() => {
+    if (uri) mediaFailed(uri);
+  }, [uri, mediaFailed]);
+}
 export function useSocialStatus() {
   const uid = useLocal((s) => s.uid),
     { version } = useSocial();

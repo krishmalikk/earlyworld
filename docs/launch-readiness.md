@@ -1,5 +1,17 @@
 # earlyworld — what would make it feel finished?
 
+## October 18: three approved follow-up fixes
+
+Implemented on `production-implementation`:
+
+1. **Policies and deletion:** current text/photo and immediate-publication behavior now agrees across native and hosted policies. Added an external email deletion-request page and links from settings, community, and website footer. Apple deletion reauthenticates and revokes provider access; cleanup no longer strands accounts with more than 25 orphan uploads. See [deletion operations and verification](account-deletion.md). Real-provider OAuth/revocation testing on physical devices remains required; emulator cleanup tests are not a substitute.
+2. **Photo-link recovery:** mounted private photos/avatars register with one account-scoped renewal coordinator. Near expiry, on image failure, and on foreground resume, existing authorized readers renew links. Refreshes are batched with a 30-second retry cooldown; public catalog art is unaffected. An open full-photo view tracks the media ID so renewed URLs replace the expired source without reopening the post.
+3. **Feed pagination:** For You uses independent source positions including timestamp precision and document IDs. Following, post lists, reviews and comments use precise timestamp/ID cursors; old cursors remain readable. Group scan boundaries cannot skip unseen rows after filtering. Old installed For You clients retain their numeric-cursor compatibility until updated.
+
+Publishing restrictions, eligibility enforcement, report inbox, and the other proposals below have **not** been implemented by this follow-up. The observations below are the original audit; the completed items above supersede those specific findings.
+
+**Validation and rollout:** `npm run check` passed (48 tests plus type/quality/build checks). The isolated Auth/Firestore/Storage backend and security suite passed all 58 tests. The six affected Functions and Firebase-hosted policy/deletion pages were deployed; both web pages return HTTP 200 with the expected content. The simulator shows the new deletion web link and cancellation returns to the explanation without submitting deletion. The marketing website footer change is local source only: Firebase serves `hosting/`, not `website/`. App changes require an updated app bundle. Physical-provider deletion/revocation and live signed-photo expiry recovery on devices remain to be verified; automated renewal tests cover expiry parsing, batching, retry cooldown, unmount/account reset, and URL replacement.
+
 **Codebase review: October 17, 2026**  
 **Baseline:** `main` at `bbc58be`, including the current uncommitted working-tree changes.
 

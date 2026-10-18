@@ -1,5 +1,10 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import { FieldPath, type DocumentData, type DocumentSnapshot } from 'firebase-admin/firestore';
+import {
+  FieldPath,
+  type DocumentData,
+  type DocumentSnapshot,
+  type Query,
+} from 'firebase-admin/firestore';
 import { db, rateLimit } from './core';
 import { blocked, postDTO, socialContext, Timestamp } from './social-core';
 import { postReason, ratingReason, releaseRatingReason, type Taste } from '../../shared/for-you';
@@ -67,7 +72,51 @@ function serialize(id: string, p: DocumentData) {
   };
 }
 
+type Source = 'rating' | 'releaseRating' | 'post';
+type Position = [number, number, string];
+type FeedCursor = { v: 2; until: number; positions: Record<Source, Position | null> };
+const sources: Source[] = ['rating', 'releaseRating', 'post'];
+function readFeedCursor(value: unknown): FeedCursor {
+  if (value == null || (typeof value === 'number' && Number.isSafeInteger(value) && value > 0))
+    return {
+      v: 2,
+      until: value == null ? Date.now() + 1 : (value as number),
+      positions: { rating: null, releaseRating: null, post: null },
+    };
+  try {
+    if (typeof value !== 'string' || value.length > 2048) throw Error();
+    const parsed = JSON.parse(Buffer.from(value, 'base64url').toString()) as FeedCursor;
+    if (
+      parsed.v !== 2 ||
+      !Number.isSafeInteger(parsed.until) ||
+      parsed.until <= 0 ||
+      !parsed.positions
+    )
+      throw Error();
+    for (const source of sources) {
+      const p = parsed.positions[source];
+      if (
+        p !== null &&
+        (!Array.isArray(p) ||
+          p.length !== 3 ||
+          !Number.isSafeInteger(p[0]) ||
+          p[0] < 0 ||
+          !Number.isInteger(p[1]) ||
+          p[1] < 0 ||
+          p[1] >= 1e9 ||
+          typeof p[2] !== 'string' ||
+          !/^[a-zA-Z0-9_-]{1,128}$/.test(p[2]))
+      )
+        throw Error();
+    }
+    return parsed;
+  } catch {
+    throw new HttpsError('invalid-argument', 'Invalid page cursor.');
+  }
+}
 type Item = {
+  id: string;
+  position: Position;
   type: 'rating' | 'releaseRating' | 'post';
   at: number;
   reason: string;
@@ -82,33 +131,24 @@ type Item = {
 export const readForYou = onCall(async (r) => {
   const c = await socialContext(r);
   await rateLimit(c.uid, 'communityRead', 1200);
-  const before = r.data?.cursor == null ? Date.now() + 1 : Number(r.data.cursor);
-  if (!Number.isFinite(before) || before <= 0)
-    throw new HttpsError('invalid-argument', 'Invalid page cursor.');
-  const until = Timestamp.fromMillis(before);
+  const cursorState = readFeedCursor(r.data?.cursor);
+  const until = Timestamp.fromMillis(cursorState.until);
   const taste = await loadTaste(c.uid, c.user);
-  const [ratings, releaseRatings, posts] = await Promise.all([
-    db
-      .collection('ratings')
-      .where('createdAt', '<', until)
-      .orderBy('createdAt', 'desc')
-      .limit(SCAN)
-      .get(),
-    db
-      .collection('releaseRatings')
-      .where('createdAt', '<', until)
-      .orderBy('createdAt', 'desc')
-      .limit(SCAN)
-      .get(),
-    db
-      .collection('posts')
-      .where('status', '==', 'published')
-      .where('publishedAt', '<', until)
-      .orderBy('publishedAt', 'desc')
-      .orderBy(FieldPath.documentId(), 'desc')
-      .limit(SCAN)
-      .get(),
-  ]);
+  const specs = [
+    ['rating', 'ratings', 'createdAt'],
+    ['releaseRating', 'releaseRatings', 'createdAt'],
+    ['post', 'posts', 'publishedAt'],
+  ] as const;
+  const [ratings, releaseRatings, posts] = await Promise.all(
+    specs.map(async ([source, collection, field]) => {
+      let q: Query = db.collection(collection);
+      if (source === 'post') q = q.where('status', '==', 'published');
+      q = q.where(field, '<', until).orderBy(field, 'desc').orderBy(FieldPath.documentId(), 'desc');
+      const after = cursorState.positions[source];
+      if (after) q = q.startAfter(new Timestamp(after[0], after[1]), after[2]);
+      return q.limit(SCAN).get();
+    }),
+  );
   const catalog = await getAll([
     ...ratings.docs.map((d) => `tracks/${d.data().trackId}`),
     ...releaseRatings.docs.map((d) => `releases/${d.data().releaseId}`),
@@ -122,18 +162,6 @@ export const readForYou = onCall(async (r) => {
     }),
   ]);
 
-  // Only the time range every full scan covered is complete; older items wait for the next page.
-  const scans = [
-    { snap: ratings, field: 'createdAt' },
-    { snap: releaseRatings, field: 'createdAt' },
-    { snap: posts, field: 'publishedAt' },
-  ];
-  const floor = Math.max(
-    0,
-    ...scans
-      .filter((s) => s.snap.size === SCAN)
-      .map((s) => s.snap.docs.at(-1)!.data()[s.field]?.toMillis() || 0),
-  );
   const candidates: Item[] = [];
   for (const d of ratings.docs) {
     const p = d.data(),
@@ -147,13 +175,14 @@ export const readForYou = onCall(async (r) => {
       producerName: track?.producerName,
       hasReview: !!p.review,
     });
-    if (reason)
-      candidates.push({
-        type: 'rating',
-        at: p.createdAt?.toMillis() || 0,
-        reason,
-        data: serialize(d.id, p),
-      });
+    candidates.push({
+      id: d.id,
+      position: [p.createdAt.seconds, p.createdAt.nanoseconds, d.id],
+      type: 'rating',
+      at: p.createdAt?.toMillis() || 0,
+      reason: reason || '',
+      data: serialize(d.id, p),
+    });
   }
   for (const d of releaseRatings.docs) {
     const p = d.data(),
@@ -165,17 +194,18 @@ export const readForYou = onCall(async (r) => {
       artistName: release?.artistName,
       hasReview: !!p.review,
     });
-    if (reason)
-      candidates.push({
-        type: 'releaseRating',
-        at: p.createdAt?.toMillis() || 0,
-        reason,
-        data: serialize(d.id, p),
-      });
+    candidates.push({
+      id: d.id,
+      position: [p.createdAt.seconds, p.createdAt.nanoseconds, d.id],
+      type: 'releaseRating',
+      at: p.createdAt?.toMillis() || 0,
+      reason: reason || '',
+      data: serialize(d.id, p),
+    });
   }
   for (const d of posts.docs) {
     const p = d.data();
-    if (p.purpose === 'profile') continue;
+
     const a = p.attachment,
       attached = a
         ? catalog.get(`${a.kind === 'track' ? 'tracks' : 'releases'}/${a.id}`)?.data()
@@ -187,21 +217,43 @@ export const readForYou = onCall(async (r) => {
       attachedArtistId: attached?.artistId,
       attachedArtistName: attached?.artistName,
     });
-    if (reason)
-      candidates.push({
-        type: 'post',
-        at: p.publishedAt?.toMillis() || 0,
-        reason,
-        data: { id: d.id, p },
-      });
+    candidates.push({
+      id: d.id,
+      position: [p.publishedAt.seconds, p.publishedAt.nanoseconds, d.id],
+      type: 'post',
+      at: p.publishedAt?.toMillis() || 0,
+      reason: reason || '',
+      data: { id: d.id, p },
+    });
   }
 
-  candidates.sort((a, b) => b.at - a.at);
+  candidates.sort(
+    (a, b) =>
+      b.position[0] - a.position[0] ||
+      b.position[1] - a.position[1] ||
+      (a.type < b.type ? 1 : a.type > b.type ? -1 : a.id < b.id ? 1 : a.id > b.id ? -1 : 0),
+  );
+  const counts = { rating: 0, releaseRating: 0, post: 0 };
+  const sizes = { rating: ratings.size, releaseRating: releaseRatings.size, post: posts.size };
   const visible = new Map<string, boolean>();
   const items: Item[] = [];
   let last = 0;
+  let hasMore = false;
   for (const item of candidates) {
-    if (item.at <= floor) break;
+    cursorState.positions[item.type] = item.position;
+    counts[item.type]++;
+    last = item.at;
+    const boundary = counts[item.type] === SCAN;
+    if (
+      !item.reason ||
+      (item.type === 'post' && (item.data as { p: DocumentData }).p.purpose === 'profile')
+    ) {
+      if (boundary) {
+        hasMore = true;
+        break;
+      }
+      continue;
+    }
     const author =
       item.type === 'post'
         ? (item.data as { p: DocumentData }).p.uid
@@ -213,15 +265,30 @@ export const readForYou = onCall(async (r) => {
         !account?.suspended && !account?.deleting && !(await blocked(c.uid, author)),
       );
     }
-    if (!visible.get(author)) continue;
+    if (!visible.get(author)) {
+      if (boundary) {
+        hasMore = true;
+        break;
+      }
+      continue;
+    }
     if (item.type === 'post') {
       const { id, p } = item.data as { id: string; p: DocumentData };
       item.data = await postDTO(id, p, c.uid);
     }
     items.push(item);
-    last = item.at;
-    if (items.length === PAGE) break;
+    if (items.length === PAGE || boundary) {
+      hasMore = true;
+      break;
+    }
   }
-  const cursor = items.length === PAGE ? last : floor > 0 ? floor : null;
-  return { items, cursor };
+  hasMore =
+    hasMore && sources.some((source) => counts[source] < sizes[source] || sizes[source] === SCAN);
+  // Old installed clients expect a number. Updated clients request the tie-safe cursor.
+  const cursor = !hasMore
+    ? null
+    : r.data?.cursorVersion === 2
+      ? Buffer.from(JSON.stringify(cursorState)).toString('base64url')
+      : last;
+  return { items: items.map(({ id: _id, position: _position, ...item }) => item), cursor };
 });

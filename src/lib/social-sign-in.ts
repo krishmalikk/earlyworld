@@ -3,6 +3,9 @@ import {
   AppleAuthProvider,
   GoogleAuthProvider,
   signInWithCredential,
+  reauthenticateWithCredential,
+  revokeToken,
+  getIdToken,
   signOut as firebaseSignOut,
 } from '@react-native-firebase/auth';
 import {
@@ -48,6 +51,11 @@ export const appleSignInAvailable = () =>
 
 /** Signs in to Firebase with an Apple ID, using a one-time nonce Firebase can verify. */
 export async function signInWithApple() {
+  const apple = await appleCredential();
+  return signInWithCredential(auth, apple.credential);
+}
+
+async function appleCredential() {
   const rawNonce = Crypto.randomUUID();
   const hashedNonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawNonce);
   try {
@@ -56,14 +64,36 @@ export async function signInWithApple() {
       nonce: hashedNonce,
     });
     if (!apple.identityToken) throw Error('Apple did not return a sign-in token. Try again.');
-    return await signInWithCredential(
-      auth,
-      AppleAuthProvider.credential(apple.identityToken, rawNonce),
-    );
+    return {
+      credential: AppleAuthProvider.credential(apple.identityToken, rawNonce),
+      authorizationCode: apple.authorizationCode,
+    };
   } catch (e) {
     if ((e as { code?: string }).code === 'ERR_REQUEST_CANCELED') throw new SignInCancelled();
     throw e;
   }
+}
+
+/** Apple requires a fresh authorization code to revoke access when deleting an account. */
+export async function prepareAccountDeletion(uid: string) {
+  const user = auth.currentUser;
+  if (!user || user.uid !== uid) throw Error('Sign in again to continue.');
+  if (user.providerData.some((provider) => provider.providerId === 'apple.com')) {
+    if (!(await appleSignInAvailable()))
+      throw Error(
+        'Delete this Apple-linked account on your iPhone, or use the web deletion request below.',
+      );
+    const apple = await appleCredential();
+    if (!apple.authorizationCode)
+      throw Error('Apple did not return an authorization code. Try again.');
+    // Reauthentication rejects a different Apple ID instead of switching the Firebase account.
+    await reauthenticateWithCredential(user, apple.credential);
+    if (auth.currentUser?.uid !== uid) throw Error('Your account changed. Start again.');
+    await revokeToken(auth, apple.authorizationCode);
+  }
+  if (auth.currentUser?.uid !== uid) throw Error('Your account changed. Start again.');
+  await getIdToken(user, true);
+  if (auth.currentUser?.uid !== uid) throw Error('Your account changed. Start again.');
 }
 
 /** Clears the Google session too, so the next Google sign-in can pick a different account. */
