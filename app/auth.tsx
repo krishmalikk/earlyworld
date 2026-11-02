@@ -7,11 +7,12 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   createUserWithEmailAndPassword,
+  sendEmailVerification,
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
 } from '@react-native-firebase/auth';
 import { doc, serverTimestamp, setDoc } from '@react-native-firebase/firestore';
-import { auth, db, call, errorMessage } from '../src/lib/firebase';
+import { auth, db, call, errorMessage, report } from '../src/lib/firebase';
 import { Brand } from '../src/components/Brand';
 import { AuthWaves, ReturningOrbit } from '../src/components/AuthDecor';
 import { Button, c, Chip, ErrorLine, Field, s } from '../src/components/ui';
@@ -74,6 +75,8 @@ export default function Auth() {
           scenes: [],
         });
         await call('setSocialEligibility', { age: Number(age), country: 'US', agreed: true });
+        // Written reviews need a verified email; Settings can resend this if it fails.
+        await sendEmailVerification(result.user).catch(report);
       } else await signInWithEmailAndPassword(auth, email.trim(), password);
     } catch (e) {
       setError(errorMessage(e));

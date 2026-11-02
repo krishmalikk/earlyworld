@@ -61,6 +61,9 @@ const config: ExpoConfig = {
         ]
       : []),
   ],
-  extra: process.env.EAS_PROJECT_ID ? { eas: { projectId: process.env.EAS_PROJECT_ID } } : {},
+  // Cloud builds don't receive .env, and EAS needs this ID before it can load project variables.
+  extra: {
+    eas: { projectId: process.env.EAS_PROJECT_ID || 'df812fe5-0560-46e5-afc9-eb63c5f41793' },
+  },
 };
 export default config;

@@ -1,16 +1,25 @@
-import { fontSize, radius, space } from '../../shared/theme';
+import { fontSize, radius, space } from '../../../shared/theme';
 import { useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { collection, orderBy, query } from '@react-native-firebase/firestore';
-import { useCollection } from '../../src/data/listeners';
-import { useLocal } from '../../src/state/local';
-import { db, call, errorMessage } from '../../src/lib/firebase';
-import { useSession } from '../../src/data/session';
-import { useCatalogIds } from '../../src/data/catalog';
-import type { Match } from '../../src/data/types';
-import { Artwork, Button, c, Empty, ErrorLine, Heading, Page, s } from '../../src/components/ui';
-import { UserLine } from '../../src/components/UserLine';
+import { useCollection } from '../../../src/data/listeners';
+import { useLocal } from '../../../src/state/local';
+import { db, call, errorMessage } from '../../../src/lib/firebase';
+import { useSession } from '../../../src/data/session';
+import { useCatalogIds } from '../../../src/data/catalog';
+import type { Follow, Match } from '../../../src/data/types';
+import { Artwork, Button, c, Empty, ErrorLine, Heading, Page, s } from '../../../src/components/ui';
+import { UserLine } from '../../../src/components/UserLine';
+import { FollowButton } from '../../../src/components/FollowButton';
+/** Why this listener is here: shared saves, the rarer the better. Scores stay private. */
+function matchReason(match: Match) {
+  const n = match.sharedTracks.length,
+    rarest = Math.min(...match.sharedTracks.map((t) => t.saveCount));
+  const shared = `${n} shared track${n === 1 ? '' : 's'}`;
+  if (!n || !Number.isFinite(rarest)) return shared;
+  return `${shared} · rarest: ${rarest} ${rarest === 1 ? 'save' : 'saves'}`;
+}
 export default function Matches() {
   const uid = useLocal((s) => s.uid);
   const { user, loading: profileLoading } = useSession();
@@ -37,6 +46,9 @@ export default function Matches() {
     [data],
   );
   const catalog = useCatalogIds('tracks', trackIds);
+  const followRef = useMemo(() => (uid ? collection(db, 'users', uid, 'following') : null), [uid]);
+  const follows = useCollection<Follow>(followRef, true);
+  const followed = useMemo(() => new Set(follows.data.map((f) => f.id)), [follows.data]);
   return (
     <Page>
       <Heading
@@ -55,16 +67,20 @@ export default function Matches() {
       />
       <ErrorLine message={error || requestError} />
       {loading || profileLoading ? (
-        <Empty title="Loading connections…" />
+        <ActivityIndicator color={c.accent} accessibilityLabel="Loading matches" />
       ) : data.length ? (
         data.map((match) => (
           <View key={match.id} style={s.panel}>
-            <UserLine
-              uid={match.id}
-              detail={`${match.sharedTracks.length} shared track${
-                match.sharedTracks.length === 1 ? '' : 's'
-              }`}
-            />
+            <View style={s.row}>
+              <View style={{ flex: 1 }}>
+                <UserLine uid={match.id} detail={matchReason(match)} />
+              </View>
+              <FollowButton
+                uid={match.id}
+                following={followed.has(match.id)}
+                disabled={follows.loading || !!follows.error}
+              />
+            </View>
             {match.sharedTracks.map((track) => (
               <View
                 key={track.trackId}

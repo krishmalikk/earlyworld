@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Text, View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 import { useLocalSearchParams, useFocusEffect, router } from 'expo-router';
 import { call, errorMessage } from '../../src/lib/firebase';
 import { useLocal } from '../../src/state/local';
@@ -8,7 +8,8 @@ import type { SocialPost, SocialComment } from '../../shared/social';
 import { useForeground } from '../../src/data/listeners';
 import { newPostId } from '../../src/data/post-composer';
 import { PostCard } from '../../src/components/PostCard';
-import { Button, c, ErrorLine, Field, Page, s, Section } from '../../src/components/ui';
+import { Button, c, ErrorLine, Page, s, Section } from '../../src/components/ui';
+import { CommentComposer, CommentRow } from '../../src/components/Comments';
 export default function PostDetail() {
   const { id, own } = useLocalSearchParams<{ id: string; own?: string }>();
   const uid = useLocal((s) => s.uid);
@@ -129,47 +130,26 @@ function Detail({ id, own }: { id: string; own: boolean }) {
           ) : (
             <Section title="Comments">
               {comments.map((c) => (
-                <View key={c.id} style={s.panel}>
-                  <Text style={s.text}>@{c.author.username}</Text>
-                  <Text style={s.text}>{c.body}</Text>
-                  {c.status !== 'approved' ? (
-                    <Text style={s.muted}>
-                      {c.status === 'pending' ? 'Posting…' : c.reason || 'Not posted'}
-                    </Text>
-                  ) : null}
-                  {c.uid === uid ? (
-                    <Button
-                      quiet
-                      onPress={() =>
-                        Alert.alert('Delete comment?', undefined, [
-                          { text: 'Cancel', style: 'cancel' },
-                          {
-                            text: 'Delete',
-                            style: 'destructive',
-                            onPress: () =>
-                              void call('deleteSocialContent', { kind: 'comment', id: c.id })
-                                .then(changed)
-                                .catch((e) => setError(errorMessage(e))),
-                          },
-                        ])
-                      }
-                    >
-                      Delete
-                    </Button>
-                  ) : (
-                    <Button
-                      quiet
-                      onPress={() =>
-                        router.push({
-                          pathname: '/community',
-                          params: { reportKind: 'comment', reportId: c.id },
-                        })
-                      }
-                    >
-                      Report
-                    </Button>
-                  )}
-                </View>
+                <CommentRow
+                  key={c.id}
+                  uid={c.uid}
+                  body={c.body}
+                  createdAt={c.createdAt ? new Date(c.createdAt) : undefined}
+                  status={c.status}
+                  reason={c.reason}
+                  own={c.uid === uid}
+                  onDelete={() =>
+                    void call('deleteSocialContent', { kind: 'comment', id: c.id })
+                      .then(changed)
+                      .catch((e) => setError(errorMessage(e)))
+                  }
+                  onReport={() =>
+                    router.push({
+                      pathname: '/community',
+                      params: { reportKind: 'comment', reportId: c.id },
+                    })
+                  }
+                />
               ))}
               {cursor ? (
                 <Button
@@ -195,21 +175,15 @@ function Detail({ id, own }: { id: string; own: boolean }) {
                   More comments
                 </Button>
               ) : null}
-              <Field
-                accessibilityLabel="Comment"
+              <CommentComposer
                 value={body}
-                onChangeText={(text) => {
+                onChange={(text) => {
                   setBody(text);
                   requestId.current = newPostId();
                 }}
-                maxLength={1000}
-                multiline
-                placeholder="Add to the conversation…"
+                onSubmit={() => void submit()}
+                busy={busy}
               />
-
-              <Button busy={busy} disabled={!body.trim()} onPress={() => void submit()}>
-                Submit comment
-              </Button>
             </Section>
           )}
         </>

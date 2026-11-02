@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { db, tracksFor, FieldValue, authUid, Timestamp } from './core';
-import { blocked } from './social-core';
+import { blocked, noticeRef, notify } from './social-core';
 import { matchScores, type MatchTrack } from '../../shared/domain';
 /** Coalesce overlapping requests; a pending fifth-save refresh must never be lost. */
 export async function computeMatchesFor(uid: string) {
@@ -35,9 +35,16 @@ export async function computeMatchesFor(uid: string) {
         )
           visibleResults.push(result);
       const old = await db.collection(`users/${uid}/matches`).get();
+      // The first matches are the onboarding result itself, not news.
+      const fresh = user.data()?.initialMatchesComputed
+        ? visibleResults.filter((match) => !old.docs.some((d) => d.id === match.uid))
+        : [];
       again = await db.runTransaction(async (tx) => {
         const current = await tx.get(lease);
         if (current.data()?.token !== token) return false;
+        const known = fresh.length
+          ? await tx.getAll(...fresh.map((match) => noticeRef(uid, `match:${match.uid}`)))
+          : [];
         old.docs.forEach((d) => tx.delete(d.ref));
         visibleResults.forEach(({ uid: matchUid, ...data }) =>
           tx.set(db.doc(`users/${uid}/matches/${matchUid}`), {
@@ -45,6 +52,10 @@ export async function computeMatchesFor(uid: string) {
             computedAt: FieldValue.serverTimestamp(),
           }),
         );
+        fresh.forEach((match, i) => {
+          if (!known[i].exists)
+            notify(tx, uid, `match:${match.uid}`, { type: 'match', actorUid: match.uid });
+        });
         if (user.exists)
           tx.update(user.ref, { lastMatchedSaveEvent: user.data()!.totalSaveEvents || 0 });
         if (current.data()?.pending) {

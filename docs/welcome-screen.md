@@ -1,6 +1,6 @@
 # Animated welcome screen
 
-New signed-out launches open an animated introduction before authentication. **Get started** opens Create account; **Sign in** opens the existing sign-in form. Firebase restores the session first: completed accounts keep the existing Matches destination, unfinished accounts resume onboarding, and signed-in deep links stay intact. The native splash remains the short loading screen before React is ready.
+New signed-out launches open an animated introduction before authentication. **Get started** opens Create account; **Sign in** opens the existing sign-in form. Firebase restores the session first: completed accounts open on Feed, unfinished accounts resume onboarding, and signed-in deep links stay intact. The native splash remains the short loading screen before React is ready.
 
 `WelcomeScreen` uses the existing midnight/navy/lavender theme. Three fine circular paths surround the earlyworld wordmark. Eight circular SoundCloud artist profile pictures move at different speeds and directions, remaining upright. The shared `Artwork` component selects Retina image sizes and handles failed images with initials. `welcome-artwork.ts` holds a small curated set of public avatar URLs verified against the reviewed SoundCloud artist roster; there is no pre-login Firestore listener, provider API request, or bundled full catalog. Remote images still require network access on a first install; the layout and entry buttons work without them.
 

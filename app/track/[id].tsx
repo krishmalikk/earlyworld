@@ -1,31 +1,25 @@
 import { useCommunity } from '../../src/data/community';
 import { newPostId } from '../../src/data/post-composer';
 import { fontSize, fontWeight, radius, space } from '../../shared/theme';
-import { useEffect, useMemo, useState } from 'react';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Linking, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { shareMessage } from '../../shared/links';
+import { CommentComposer, CommentRow } from '../../src/components/Comments';
 import { router, useLocalSearchParams } from 'expo-router';
 import { deleteDoc, doc } from '@react-native-firebase/firestore';
-import { call, db, errorMessage } from '../../src/lib/firebase';
+import { db, errorMessage } from '../../src/lib/firebase';
 import { useDocument } from '../../src/data/listeners';
 import { useLocal } from '../../src/state/local';
 import { comment } from '../../src/data/actions';
 import type { Stamp, Track } from '../../src/data/types';
-import {
-  Artwork,
-  Button,
-  c,
-  Empty,
-  ErrorLine,
-  Field,
-  Page,
-  s,
-  Section,
-} from '../../src/components/ui';
+import { Artwork, Button, c, Empty, ErrorLine, Page, s, Section } from '../../src/components/ui';
 import { CommunityRating } from '../../src/components/RatingDisplay';
 import { SaveButton, platformNames } from '../../src/components/TrackRow';
 import { RatingEditor, TrackReviews } from '../../src/components/Ratings';
 import { StudioCredits } from '../../src/components/StudioCredits';
 import { UserLine } from '../../src/components/UserLine';
+const SAVER_PREVIEW = 5;
 export default function TrackDetail() {
   const { id } = useLocalSearchParams<{ id: string }>(),
     uid = useLocal((s) => s.uid);
@@ -53,17 +47,6 @@ export default function TrackDetail() {
       status: string;
       reason?: string;
     }>({ kind: 'textSubmissions' }, 25);
-  useEffect(() => {
-    if (
-      uid &&
-      track &&
-      !track.credits &&
-      ['pending', 'deferred', 'error'].includes(track.geniusStatus)
-    )
-      void call('requestTrackEnrichment', { trackId: id }).catch(() => {
-        /* Metadata enrichment never blocks reading or rating. */
-      });
-  }, [uid, id, !!track, track?.geniusStatus]);
   if (!track)
     return (
       <Page>
@@ -129,7 +112,10 @@ export default function TrackDetail() {
       </View>
       <View style={[s.between, { flexWrap: 'wrap' }]}>
         {track.sourceStatus === 'unavailable' ? (
-          <Text style={[s.muted, { flex: 1 }]}>Unavailable at its source.</Text>
+          <Text style={[s.muted, { flex: 1 }]}>
+            No longer available at its source. Your ratings and saves still count, and the artist
+            page has more.
+          </Text>
         ) : (
           <Pressable
             accessibilityRole="link"
@@ -143,6 +129,19 @@ export default function TrackDetail() {
           <Text style={s.muted}>
             {track.saveCount} {track.saveCount === 1 ? 'save' : 'saves'}
           </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Share track"
+            hitSlop={8}
+            onPress={() =>
+              void Share.share({
+                message: shareMessage('track', id, `${track.title} by ${track.artistName}`),
+              }).catch(() => setError('Could not open sharing.'))
+            }
+            style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Ionicons name="share-outline" size={22} color={c.muted} />
+          </Pressable>
           <SaveButton track={track} onError={setError} />
         </View>
       </View>
@@ -168,14 +167,24 @@ export default function TrackDetail() {
       </View>
       <StudioCredits key={`studio-${id}`} track={track} />
       <TrackReviews key={`reviews-${id}`} trackId={id} />
-      <Section title="Saved by">
-        {track.savers.slice(0, 20).map((saver) => (
+      <Section
+        title="Saved by"
+        right={
+          track.savers.length > SAVER_PREVIEW ? (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push({ pathname: '/track/savers/[id]', params: { id } })}
+              style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: space[12] }}
+            >
+              <Text style={s.link}>View all {track.savers.length}</Text>
+            </Pressable>
+          ) : undefined
+        }
+      >
+        {track.savers.slice(0, SAVER_PREVIEW).map((saver) => (
           <UserLine key={saver} uid={saver} />
         ))}
         {!track.savers.length ? <Text style={s.muted}>No saves yet.</Text> : null}
-        {track.savers.length > 20 ? (
-          <Text style={s.muted}>+ {track.savers.length - 20} more in the early listener list</Text>
-        ) : null}
         {track.saversCapped ? (
           <Text style={s.muted}>
             Showing early listeners. This track has grown beyond rare matching.
@@ -183,65 +192,54 @@ export default function TrackDetail() {
         ) : null}
       </Section>
       <Section title={`Discussion · ${comments.data.length}`}>
-        <Field
-          placeholder="Leave a note"
+        <CommentComposer
           value={body}
-          onChangeText={(t) => {
+          onChange={(t) => {
             setBody(t);
             setRequestId(newPostId());
           }}
-          maxLength={1000}
-          multiline
+          onSubmit={send}
+          busy={busy}
         />
-        <Button disabled={!body.trim()} busy={busy} onPress={send}>
-          Submit comment for review
-        </Button>
         <ErrorLine message={error || comments.error} />
-        {pending.data
-          .filter(
-            (p) =>
-              p.kind === 'trackComment' &&
-              p.targetPath.startsWith(`tracks/${id}/`) &&
-              p.status !== 'approved',
-          )
-          .map((p) => (
-            <View key={p.id} style={s.panel}>
-              <Text style={s.muted}>
-                {p.status === 'pending' ? 'Posting…' : p.reason || 'Not posted'}
-              </Text>
-              <Text style={s.text}>{p.body}</Text>
-            </View>
-          ))}
+        {uid
+          ? pending.data
+              .filter(
+                (p) =>
+                  p.kind === 'trackComment' &&
+                  p.targetPath.startsWith(`tracks/${id}/`) &&
+                  p.status !== 'approved',
+              )
+              .map((p) => (
+                <CommentRow
+                  key={p.id}
+                  uid={uid}
+                  body={p.body || ''}
+                  status={p.status}
+                  reason={p.reason}
+                  own
+                />
+              ))
+          : null}
         {comments.data.map((item) => (
-          <View key={item.id} style={s.panel}>
-            <UserLine uid={item.uid} />
-            <Text style={s.text}>{item.body}</Text>
-            <Button
-              quiet
-              onPress={() =>
-                router.push({
-                  pathname: '/community',
-                  params: { reportKind: 'trackComment', reportId: item.id, trackId: id },
-                })
-              }
-            >
-              Report comment
-            </Button>
-            {item.uid === uid ? (
-              <Text
-                style={s.link}
-                onPress={async () => {
-                  try {
-                    await deleteDoc(doc(db, 'tracks', id, 'comments', item.id));
-                  } catch (e) {
-                    setError(errorMessage(e));
-                  }
-                }}
-              >
-                Delete your comment
-              </Text>
-            ) : null}
-          </View>
+          <CommentRow
+            key={item.id}
+            uid={item.uid}
+            body={item.body}
+            createdAt={item.createdAt?.toDate()}
+            own={item.uid === uid}
+            onDelete={() =>
+              void deleteDoc(doc(db, 'tracks', id, 'comments', item.id)).catch((e) =>
+                setError(errorMessage(e)),
+              )
+            }
+            onReport={() =>
+              router.push({
+                pathname: '/community',
+                params: { reportKind: 'trackComment', reportId: item.id, trackId: id },
+              })
+            }
+          />
         ))}
         {comments.more ? (
           <Button quiet onPress={() => setCommentCount((n) => n + 25)}>

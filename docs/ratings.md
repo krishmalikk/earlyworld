@@ -9,6 +9,8 @@
 - Rating feed entries use their own document identity, preserving different listeners' opinions on the same song. Editing retains the original publication date; deleting removes the entry.
 - Review text is optional, editable, and removable independently of the star rating. Existing discussions and Studio credits are preserved.
 
+Written reviews need a verified email; star ratings do not. New email/password accounts get a skippable prompt before choosing a username. If someone writes a review while unverified, the editor keeps their text and offers the verification controls instead of calling the server, which still enforces the rule.
+
 ## Backend contract
 
 `ratings/{sha256(uid + ':' + trackId)}` stores `uid`, `trackId`, integer `halfStars` (1–10), trimmed `review`, `createdAt`, and `updatedAt`.

@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { defineSecret } from 'firebase-functions/params';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
-import { authUid, db, FieldValue, rateLimit, requiredText, Timestamp } from './core';
+import { adminUid, db, FieldValue, rateLimit, requiredText, Timestamp } from './core';
 import { normalizeName } from '../../shared/domain';
 
 const token = defineSecret('GENIUS_ACCESS_TOKEN');
@@ -226,7 +226,7 @@ export async function syncProducerPage(producerId: string, request: GeniusReques
 export const syncProducerCredits = onCall(
   { secrets: [token], timeoutSeconds: 180, maxInstances: 2 },
   async (request) => {
-    const uid = authUid(request);
+    const uid = adminUid(request);
     await rateLimit(uid, 'producerCredits', 60);
     try {
       return await syncProducerPage(

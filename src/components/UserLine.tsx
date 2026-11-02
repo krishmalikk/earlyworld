@@ -1,13 +1,11 @@
-import { useCommunity } from '../data/community';
+import { useProfile } from '../data/profiles';
 import { radius, space } from '../../shared/theme';
 import { Pressable, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import type { User } from '../data/types';
 import { Artwork, s } from './ui';
 export function UserLine({ uid, detail }: { uid: string; detail?: string }) {
-  const profile = useCommunity<User>({ kind: 'profile', uid });
-  const data = profile.data[0];
-  if (profile.error) return null;
+  const data = useProfile(uid);
+  if (data === null) return null;
   return (
     <Pressable
       onPress={() => router.push(`/user/${uid}`)}

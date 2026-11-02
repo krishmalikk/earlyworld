@@ -60,6 +60,24 @@ Catalog tracks remain metadata-only and nothing plays in the app; video posts we
 
 Concurrent matching requests set a pending flag on the current lease. The worker repeats with fresh saves before releasing ownership; a unique lease token prevents an expired worker from replacing a newer result. A successful write records the save-event watermark, so a trigger retry after a failed matching call can still finish the refresh without recounting the save.
 
+## Community invalidation and row profiles
+
+`socialState/current` makes every signed-in client refetch mounted community data, so transactions no longer write it. Triggers on ratings, posts, comments, activity and public profile fields signal it at most once a minute; counter-only user writes are ignored. Suspension and account deletion write it directly. Each account's own `users/{uid}/socialState/current` still updates immediately, and screens refresh on focus, so another listener's activity can take up to a minute to appear on an open screen, or longer if nothing further happens until the next focus.
+
+`UserLine` and `FeedReview` read names and avatars through `ProfilesProvider`, an account-scoped store that batches up to 30 listeners per `readCommunity` `profiles` request. The server omits blocked, suspended, deleting and missing accounts. The full `profile` kind remains for profile screens and installed clients. Deploy `readCommunity` before shipping a client that uses `profiles`.
+
+## Community screen cache
+
+`useCommunity` keeps the latest 100 results per account in memory and shows one immediately when a screen reopens, while its normal request refreshes it. Account changes discard the cache, `not-found` and `permission-denied` responses remove the entry, and blocking clears it. It is not persisted to disk. Being blocked by someone else takes effect when that refresh returns, so a remembered screen can show briefly first. `usePostPage`, `useForYou` and `useSavedLibrary` have their own state and do not use this cache.
+
+## Finding listeners
+
+Discover's Listeners filter uses `readCommunity` `listeners`, a username-prefix scan of `usernames`. Follower and following lists use the `followers` and `following` kinds, newest follow first by `followedAt`. They are visible to all signed-in listeners. `following` also accepts `targetType: artist | producer`, returning catalog name and image rows with no block checks, since those are public records. All three omit blocked, suspended, deleting and missing accounts, so a list can be shorter than its count, and blocking hides the whole list across the block. `followingCount` is a count query in the `profile` read, not a stored counter.
+
+## Activity
+
+`users/{uid}/notifications` is an owner-readable, server-written list of new followers, likes, comments on your posts and new matches. Each notice is written in the same transaction as its event under a deterministic ID, so retries cannot duplicate it, and unfollowing, unliking or deleting a comment removes it. The first matches from onboarding are not notices. Notices store no comment or post text. Rows resolve their actor through `ProfilesProvider`, so blocked or removed accounts disappear. A `published` notice is the one self-addressed type: it tells an owner who left while photos processed that the post is live. `markActivitySeen` sets `users/{uid}/socialState/activity.seenAt` when the screen closes, which drives the Feed bell. The hourly media cleanup also deletes notices older than 90 days; the client reads the latest 50.
+
 ## Releases
 
 Release metadata, independent ratings/reviews, and favorites use separate server-owned collections and profile fields while sharing the existing rating transaction/editor conventions. The SoundCloud importer only visits existing verified artist accounts and preserves track identity and engagement. See [releases](releases.md) for source validation, checkpoints, UI behavior, and rollout.

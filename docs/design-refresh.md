@@ -56,3 +56,11 @@ The stored SoundCloud `-large` cover URLs were serving 100×100 thumbnails, whic
 Only recognized public SoundCloud artwork/avatar URLs are transformed. Other providers, signed URLs, and original assets are left unchanged. No catalog migration or backend deployment is needed; existing and new catalog artwork use the same renderer.
 
 Verified a catalog image returned 100×100, 500×500, and 1080×1080 assets. Visually checked the Discover shelf and the “2 Friends” track page in the iPhone 17 simulator; both display sharper images. All 22 unit tests and the app/script/Functions type checks passed. Original low-resolution uploads can still look soft; this change cannot recreate missing image detail.
+
+## November 2: native tab bar
+
+The tab bar is now Expo Router's `NativeTabs` (`app/(tabs)/_layout.tsx`), which uses the system `UITabBarController`. On iOS 26 the system draws it with Liquid Glass and derives the background from the content behind it; `backgroundColor`, `blurEffect` and `shadowColor` only apply on iOS 18 and earlier, and Android gets the Material bottom bar with the same lavender tint. Icons are SF Symbols on iOS and Material Symbols on Android, since native bars cannot render Ionicons.
+
+Native tabs draw no header, so each tab is now a directory with its own `Stack` (`(feed)`, `discover`, `create`, `matches`, `profile`) using `tabStackOptions` in `src/navigation/tab-stack.tsx`. Routes such as `/(tabs)/discover` are unchanged. Native stack headers do not accept `letterSpacing`, and on iOS 26 they centre the title. Content scrolls under the bar: iOS insets the first scroll view automatically and Android wraps screens in a bottom safe area, so `Page` keeps omitting the bottom edge inside tabs.
+
+Verified in the iPhone 17 simulator on iOS 26.5 with the existing development client; no native rebuild was needed because `react-native-screens` already ships the tab host. Not verified: Android, iOS 18 fallback styling, and `minimizeBehavior="onScrollDown"`, which did not visibly minimise during a simulated scroll on Matches and is documented as unsupported for `FlatList` screens.

@@ -19,11 +19,12 @@ import { useCatalogPage } from '../src/data/catalog';
 import { useCollection } from '../src/data/listeners';
 import { useSaves } from '../src/data/saves';
 import { useLocal } from '../src/state/local';
-import { call, db, errorMessage } from '../src/lib/firebase';
+import { auth, call, db, errorMessage } from '../src/lib/firebase';
 import { pickProfilePhoto, uploadProfilePhoto } from '../src/data/profile-photo';
 import { reserveUsername } from '../src/data/actions';
 import type { Follow } from '../src/data/types';
 import { SCENES } from '../shared/domain';
+import { shouldPromptEmail } from '../shared/startup';
 import {
   Artwork,
   Button,
@@ -37,6 +38,7 @@ import {
 } from '../src/components/ui';
 import { EntityCard } from '../src/components/EntityCard';
 import { TrackRow } from '../src/components/TrackRow';
+import { VerifyEmailControls } from '../src/components/SettingsControls';
 export default function Onboarding() {
   const { user, loading } = useSession(),
     uid = useLocal((s) => s.uid);
@@ -52,7 +54,8 @@ export default function Onboarding() {
     // Google and Apple sign-ups arrive without a profile and answer these once here.
     [age, setAge] = useState(''),
     [us, setUs] = useState(false),
-    [agreed, setAgreed] = useState(false);
+    [agreed, setAgreed] = useState(false),
+    [emailDismissed, setEmailDismissed] = useState(false);
   const followRef = useMemo(
     () =>
       uid
@@ -94,7 +97,7 @@ export default function Onboarding() {
   const artistPage = useCatalogPage('artists', { scenes, enabled: step === 4 });
   const catalog = useCatalogPage('tracks', {
     artistIds: artists,
-    enabled: step === 6 && artists.length > 0,
+    enabled: step >= 5 && artists.length > 0,
   });
   const eligible = artistPage.data;
   const tracks = catalog.data;
@@ -172,18 +175,42 @@ export default function Onboarding() {
         </Button>
       </SafeAreaView>
     );
+  const account = auth.currentUser;
+  if (
+    shouldPromptEmail({
+      step,
+      providers: account?.providerData.map((provider) => provider.providerId) || [],
+      emailVerified: !!account?.emailVerified,
+      dismissed: emailDismissed,
+    })
+  )
+    return (
+      <SafeAreaView style={s.page}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.body}>
+          <Heading title="Verify your email" />
+          <Text style={s.text}>
+            We sent you a link. You’ll need to verify your email to write reviews; everything else
+            works without it.
+          </Text>
+          <VerifyEmailControls onVerified={() => setEmailDismissed(true)} />
+          <Button quiet onPress={() => setEmailDismissed(true)}>
+            Skip for now
+          </Button>
+        </ScrollView>
+      </SafeAreaView>
+    );
   return (
     <SafeAreaView style={s.page}>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.body}>
         <View style={s.between}>
           <Text style={s.text}>Set up your profile</Text>
-          <Text style={s.mono}>{Math.min(step + 1, 6)} / 06</Text>
+          <Text style={s.mono}>{Math.min(step, 5)} / 05</Text>
         </View>
         <View style={{ height: 3, backgroundColor: c.line }}>
           <View
             style={{
               height: 3,
-              width: `${Math.min((step + 1) / 6, 1) * 100}%`,
+              width: `${Math.min(step / 5, 1) * 100}%`,
               backgroundColor: c.accent,
             }}
           />
@@ -382,7 +409,8 @@ export default function Onboarding() {
                 act(async () => {
                   await call('completeOnboarding');
                   await call('computeMatches');
-                  router.replace('/(tabs)/matches');
+                  useLocal.getState().setWelcome(true);
+                  router.replace('/(tabs)');
                 })
               }
             >

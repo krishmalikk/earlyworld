@@ -58,6 +58,7 @@ service cloud.firestore {
     }
     match /socialState/{id} { allow read: if signed(); allow write: if false; }
     match /users/{uid}/socialState/{id} { allow read: if owner(uid); allow write: if false; }
+    match /users/{uid}/notifications/{id} { allow read: if owner(uid); allow write: if false; }
     match /users/{uid}/blockedUsers/{id} { allow read: if owner(uid); allow write: if false; }
     match /users/{uid}/blockedBy/{id} { allow read: if owner(uid); allow write: if false; }
 

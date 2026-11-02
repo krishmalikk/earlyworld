@@ -58,7 +58,7 @@ Confirmed 404/410 responses mark a source unavailable and update provider status
 
 ## Durable Genius queue
 
-`_catalogJobs/{trackId}` deduplicates by track ID and title/artist signature. Opens, saves, and ratings promote jobs; new-track enqueueing and the worker's bounded catalog sweep supply background work. The queue survives restarts and uses a shared provider lease, sequential requests with one-second spacing, five jobs per minute, a persisted seed cursor, and six attempts maximum. Expired processing leases can resume. `Retry-After` pauses the entire worker; other failures use bounded exponential backoff. Authentication failures disable the worker for operator review.
+`_catalogJobs/{trackId}` deduplicates by track ID and title/artist signature. Saves and ratings promote jobs, and only admins can call `requestTrackEnrichment`; new-track enqueueing and the worker's bounded catalog sweep supply background work. The queue survives restarts and uses a shared provider lease, sequential requests with one-second spacing, five jobs per minute, a persisted seed cursor, and six attempts maximum. Expired processing leases can resume. `Retry-After` pauses the entire worker; other failures use bounded exponential backoff. Authentication failures disable the worker for operator review.
 
 States distinguish matched, unmatched, ambiguous, pending/processing, skipped, and dead. Failures leave source tracks retryable and never erase established credits. Diagnostics contain fixed error codes and IDs, never tokens, raw provider bodies, or review text. Provider counters update transactionally using the existing producer associations.
 

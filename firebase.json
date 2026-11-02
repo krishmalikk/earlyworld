@@ -3,9 +3,7 @@
     {
       "source": "functions",
       "codebase": "default",
-      "predeploy": [
-        "npm --prefix \"$RESOURCE_DIR\" run build"
-      ]
+      "predeploy": ["npm --prefix \"$RESOURCE_DIR\" run build"]
     }
   ],
   "firestore": {
@@ -35,15 +33,19 @@
   },
   "hosting": {
     "public": "hosting",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
       {
         "source": "/post/**",
         "destination": "/post.html"
+      },
+      {
+        "source": "/track/**",
+        "destination": "/open.html"
+      },
+      {
+        "source": "/user/**",
+        "destination": "/open.html"
       }
     ],
     "headers": [

@@ -22,7 +22,7 @@ export async function pickProfilePhoto() {
   return resized.uri;
 }
 
-/** Uploads against a server ticket and returns the media ID to submit for review. */
+/** Uploads against a server ticket and returns the media ID to publish with the profile. */
 export async function uploadProfilePhoto(uri: string) {
   const info = await FileSystem.getInfoAsync(uri);
   if (!info.exists) throw Error('Choose your photo again.');

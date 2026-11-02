@@ -10,6 +10,12 @@ export function authUid(request: CallableRequest) {
   if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in first.');
   return request.auth.uid;
 }
+/** Provider imports and enrichment are operator work; signed-in listeners cannot start them. */
+export function adminUid(request: CallableRequest) {
+  const uid = authUid(request);
+  if (request.auth?.token.admin !== true) throw new HttpsError('permission-denied', 'Admin only.');
+  return uid;
+}
 export function requiredText(value: unknown, label: string, max = 200) {
   if (typeof value !== 'string' || !value.trim() || value.trim().length > max)
     throw new HttpsError('invalid-argument', `Check ${label}.`);

@@ -15,6 +15,7 @@ import { useLocal } from '../src/state/local';
 import { c, s } from '../src/components/ui';
 import { report } from '../src/lib/firebase';
 import { SocialProvider } from '../src/data/social';
+import { ProfilesProvider } from '../src/data/profiles';
 import { startupRedirect } from '../shared/startup';
 export { ErrorBoundary } from 'expo-router';
 function Navigation() {
@@ -68,13 +69,16 @@ function Navigation() {
       <Stack.Screen name="release/[id]" options={{ title: 'Release' }} />
       <Stack.Screen name="user/releases/[id]" options={{ title: 'Release reviews' }} />
       <Stack.Screen name="track/[id]" options={{ title: 'Track' }} />
+      <Stack.Screen name="track/savers/[id]" options={{ title: 'Saved by' }} />
       <Stack.Screen name="entity/[id]" options={{ title: 'Artist & producer' }} />
       <Stack.Screen name="user/ratings/[id]" options={{ title: 'Ratings & reviews' }} />
       <Stack.Screen name="user/saves/[id]" options={{ title: 'Saved tracks' }} />
+      <Stack.Screen name="user/follows/[id]" options={{ title: 'Listeners' }} />
       <Stack.Screen name="user/[id]" options={{ title: 'Profile' }} />
       <Stack.Screen name="share" options={{ title: 'Share', presentation: 'modal' }} />
       <Stack.Screen name="edit-profile" options={{ title: 'Edit profile' }} />
       <Stack.Screen name="diary" options={{ title: 'Diary' }} />
+      <Stack.Screen name="activity" options={{ title: 'Activity' }} />
     </Stack>
   );
 }
@@ -104,7 +108,9 @@ export default function Layout() {
           <SavesProvider>
             <RatingsProvider>
               <SocialProvider>
-                <Navigation />
+                <ProfilesProvider>
+                  <Navigation />
+                </ProfilesProvider>
               </SocialProvider>
             </RatingsProvider>
           </SavesProvider>

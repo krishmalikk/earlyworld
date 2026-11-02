@@ -10,6 +10,15 @@ import { Artwork, c, ErrorLine, s, Section } from './ui';
 
 const PREVIEW = 5;
 
+/** The diary is only ever shown to its owner. */
+export function DiaryPrivacyNote() {
+  return (
+    <View style={styles.privacy}>
+      <Ionicons name="lock-closed-outline" size={13} color={c.muted} />
+      <Text style={s.muted}>Private. Only you can see your diary.</Text>
+    </View>
+  );
+}
 export function DiaryMonthHeader({ month }: { month: DiaryMonth }) {
   const counts = [
     month.ratings ? `${month.ratings} ${month.ratings === 1 ? 'rating' : 'ratings'}` : null,
@@ -99,6 +108,7 @@ export function DiaryPreview() {
         ) : undefined
       }
     >
+      <DiaryPrivacyNote />
       <ErrorLine message={diary.error} />
       {months.map((month) => (
         <View key={month.key}>
@@ -116,6 +126,7 @@ export function DiaryPreview() {
 }
 
 const styles = StyleSheet.create({
+  privacy: { flexDirection: 'row', alignItems: 'center', gap: space[6] },
   month: {
     flexDirection: 'row',
     alignItems: 'baseline',

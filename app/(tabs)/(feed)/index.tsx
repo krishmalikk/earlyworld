@@ -1,8 +1,18 @@
-import { useCommunity } from '../../src/data/community';
-import type { Stamp } from '../../src/data/types';
-import { fontFamily, fontSize, fontWeight, radius, space, tracking } from '../../shared/theme';
-import { useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCommunity } from '../../../src/data/community';
+import type { Stamp } from '../../../src/data/types';
+import { fontFamily, fontSize, fontWeight, radius, space, tracking } from '../../../shared/theme';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  FlatList,
+  Platform,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
+import { OrbitRefresh } from '../../../src/components/OrbitRefresh';
 import {
   collection,
   limit,
@@ -11,23 +21,23 @@ import {
   query,
   where,
 } from '@react-native-firebase/firestore';
-import { db, errorMessage } from '../../src/lib/firebase';
-import { useLocal } from '../../src/state/local';
-import { useSession } from '../../src/data/session';
-import { useCatalogIds, useCatalogPage } from '../../src/data/catalog';
-import { useCollection, useForeground } from '../../src/data/listeners';
-import type { Follow, Rating, ReleaseRating, Track } from '../../src/data/types';
+import { db, errorMessage } from '../../../src/lib/firebase';
+import { useLocal } from '../../../src/state/local';
+import { useSession } from '../../../src/data/session';
+import { useCatalogIds, useCatalogPage } from '../../../src/data/catalog';
+import { useCollection, useForeground } from '../../../src/data/listeners';
+import type { Follow, Rating, ReleaseRating, Track } from '../../../src/data/types';
 import { router } from 'expo-router';
-import { Artwork, c, Empty, ErrorLine, Page, s } from '../../src/components/ui';
-import { FeedCarousel } from '../../src/components/FeedCarousel';
-import { usePostPage } from '../../src/data/social';
-import { PostCard } from '../../src/components/PostCard';
-import type { SocialPost } from '../../shared/social';
-import { mergeFeedEntries } from '../../shared/feed';
-import { averageRating } from '../../shared/ratings';
-import { SaveButton } from '../../src/components/TrackRow';
-import { useForYou } from '../../src/data/for-you';
-import { FeedReview } from '../../src/components/FeedReview';
+import { Artwork, Button, c, Empty, ErrorLine, Page, s } from '../../../src/components/ui';
+import { FeedCarousel } from '../../../src/components/FeedCarousel';
+import { usePostPage, useSocial } from '../../../src/data/social';
+import { PostCard } from '../../../src/components/PostCard';
+import type { SocialPost } from '../../../shared/social';
+import { mergeFeedEntries } from '../../../shared/feed';
+import { averageRating } from '../../../shared/ratings';
+import { SaveButton } from '../../../src/components/TrackRow';
+import { useForYou } from '../../../src/data/for-you';
+import { FeedReview } from '../../../src/components/FeedReview';
 import { Ionicons } from '@expo/vector-icons';
 
 type Entry = {
@@ -55,6 +65,8 @@ export default function Feed() {
 }
 function Timeline() {
   const uid = useLocal((s) => s.uid),
+    welcome = useLocal((s) => s.welcome),
+    setWelcome = useLocal((s) => s.setWelcome),
     { user } = useSession(),
     active = useForeground();
   const [filter, setFilter] = useState<Filter>('all');
@@ -194,6 +206,29 @@ function Timeline() {
     ],
     page,
   );
+  const { changed } = useSocial();
+  const [refreshing, setRefreshing] = useState(false);
+  const fetching = forYou.loading || posts.loading || opinions.loading || saves.loading;
+  const fetchingNow = useRef(fetching);
+  fetchingNow.current = fetching;
+  // Requests start a moment after the pull, so wait briefly before trusting "not loading".
+  useEffect(() => {
+    if (!refreshing) return;
+    const settle = setTimeout(() => {
+      if (!fetchingNow.current) setRefreshing(false);
+    }, 600);
+    const cap = setTimeout(() => setRefreshing(false), 15000);
+    return () => {
+      clearTimeout(settle);
+      clearTimeout(cap);
+    };
+  }, [refreshing, fetching]);
+  // iOS reveals a gap above the list while pulling; Android keeps its native indicator.
+  const orbit = Platform.OS === 'ios';
+  const pull = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler((event) => {
+    pull.value = Math.max(0, -event.contentOffset.y);
+  });
   const fallback = useCatalogPage('tracks', {
     scenes: user?.scenes || [],
     enabled: !rows.some((entry) => !entry.rating),
@@ -252,7 +287,10 @@ function Timeline() {
   }, [shelfSource, catalog.byId]);
   return (
     <Page scroll={false}>
-      <FlatList
+      {orbit ? <OrbitRefresh pull={pull} refreshing={refreshing} /> : null}
+      <Animated.FlatList
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         contentContainerStyle={[s.body, { gap: space[0] }]}
         data={data}
         keyExtractor={(item) => item.key}
@@ -264,8 +302,24 @@ function Timeline() {
             fallback.loadMore();
         }}
         onEndReachedThreshold={0.5}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            // The orbit stands in for the iOS spinner, which only accepts a colour.
+            tintColor={orbit ? 'transparent' : c.accent}
+            colors={[c.accent]}
+            progressBackgroundColor={c.panel}
+            onRefresh={() => {
+              setRefreshing(true);
+              // Followed listeners and artists are live already; this refetches everything else.
+              changed();
+              fallback.refresh();
+            }}
+          />
+        }
         ListHeaderComponent={
           <View style={{ gap: space[20], paddingBottom: space[10] }}>
+            {welcome ? <WelcomeCard onDismiss={() => setWelcome(false)} /> : null}
             <View style={styles.filters}>
               {FILTERS.map((f) => {
                 const selected = filter === f.value;
@@ -347,22 +401,75 @@ function Timeline() {
           return track ? <ActivityRow entry={item} track={track} /> : null;
         }}
         ListEmptyComponent={
-          <Empty
-            title={
-              filter === 'reviews'
-                ? 'No reviews for you yet.'
-                : filter === 'posts'
-                  ? 'No posts for you yet.'
-                  : 'No activity yet.'
-            }
-            detail="Follow artists or listeners to see their activity here."
-          />
+          forYou.loading || posts.loading || opinions.loading || follows.loading ? (
+            <Empty title="Loading your feed…" />
+          ) : (
+            <Empty
+              title={
+                filter === 'reviews'
+                  ? 'No reviews for you yet.'
+                  : filter === 'posts'
+                    ? 'No posts for you yet.'
+                    : 'No activity yet.'
+              }
+              detail="Follow artists or listeners to see their activity here."
+            />
+          )
         }
       />
     </Page>
   );
 }
 
+/** Shown once, right after onboarding. Two real next steps, no tutorial. */
+function WelcomeCard({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <View style={[s.panel, { gap: space[12] }]}>
+      <View style={s.between}>
+        <Text
+          style={[s.text, { fontFamily: fontFamily.displayBold, fontSize: fontSize.trackTitle }]}
+        >
+          Your profile is ready.
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Dismiss"
+          hitSlop={10}
+          onPress={onDismiss}
+        >
+          <Ionicons name="close" size={20} color={c.muted} />
+        </Pressable>
+      </View>
+      <Text style={s.muted}>
+        Your feed fills up as the artists and listeners you follow rate, save and post. Two ways to
+        get going:
+      </Text>
+      <View style={s.row}>
+        <View style={{ flex: 1 }}>
+          <Button
+            onPress={() => {
+              onDismiss();
+              router.push('/(tabs)/discover');
+            }}
+          >
+            Rate a track
+          </Button>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Button
+            quiet
+            onPress={() => {
+              onDismiss();
+              router.push({ pathname: '/(tabs)/discover', params: { mode: 'Listeners' } });
+            }}
+          >
+            Find a listener
+          </Button>
+        </View>
+      </View>
+    </View>
+  );
+}
 function SectionHeader({ title, onMore }: { title: string; onMore?: () => void }) {
   return (
     <View style={s.between}>

@@ -6,6 +6,7 @@ import {
   reauthenticateWithCredential,
   revokeToken,
   getIdToken,
+  reload,
   signOut as firebaseSignOut,
 } from '@react-native-firebase/auth';
 import {
@@ -17,6 +18,19 @@ import {
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
 import { auth } from './firebase';
+
+/**
+ * Rechecks verification with Firebase. The forced token refresh matters: the server reads
+ * `email_verified` from the ID token, which otherwise stays stale for up to an hour.
+ */
+export async function refreshEmailVerified() {
+  if (!auth.currentUser) return false;
+  await reload(auth.currentUser);
+  const user = auth.currentUser;
+  if (!user?.emailVerified) return false;
+  await getIdToken(user, true);
+  return true;
+}
 
 /** Thrown when the person closes the Google or Apple sheet; callers show nothing. */
 export class SignInCancelled extends Error {}

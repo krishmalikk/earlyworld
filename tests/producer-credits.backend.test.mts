@@ -39,6 +39,13 @@ beforeEach(async () => {
     .set({ producerId: 'p', geniusId: 1, title: 'Song', saveCount: 5, ratingCount: 3 });
 });
 after(async () => db.terminate());
+test('listeners cannot start producer credit imports', async () => {
+  await assert.rejects(
+    syncProducerCredits.run({ auth: { uid: 'u', token: {} }, data: { producerId: 'p' } } as never),
+    { code: 'permission-denied' },
+  );
+  assert.equal((await ref.get()).data()!.geniusSync, undefined);
+});
 test('verifies producer IDs and co-producers, never performer-only associations', () => {
   assert.ok(production(song, 7));
   assert.ok(production(song, 8));

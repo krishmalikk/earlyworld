@@ -1,7 +1,8 @@
 import { useCommunity } from '../data/community';
 import { fontSize, fontWeight, lineHeight, radius, space, tracking } from '../../shared/theme';
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { shareMessage } from '../../shared/links';
 import { doc } from '@react-native-firebase/firestore';
 import { router } from 'expo-router';
 import { useRatingList } from '../data/ratings';
@@ -13,6 +14,7 @@ import { ReleaseReviews } from './Releases';
 import { RatingCard } from './Ratings';
 import { Ionicons } from '@expo/vector-icons';
 import { useDocument } from '../data/listeners';
+import { useSocial } from '../data/social';
 import { useCatalogIds } from '../data/catalog';
 import { call, db, errorMessage } from '../lib/firebase';
 import { useLocal } from '../state/local';
@@ -23,7 +25,8 @@ import { EntityCard } from './EntityCard';
 import { TrackRow } from './TrackRow';
 export function Profile({ uid }: { uid: string }) {
   const currentUid = useLocal((s) => s.uid),
-    own = uid === currentUid;
+    own = uid === currentUid,
+    { clearCommunity } = useSocial();
   const [error, setError] = useState<string | null>(null);
   const refs = useMemo(
     () => ({
@@ -73,7 +76,10 @@ export function Profile({ uid }: { uid: string }) {
                     style: 'destructive',
                     onPress: () => {
                       void call('setUserBlock', { uid, blocked: true })
-                        .then(() => router.back())
+                        .then(() => {
+                          clearCommunity();
+                          router.back();
+                        })
                         .catch((e) => setError(errorMessage(e)));
                     },
                   },
@@ -98,37 +104,55 @@ export function Profile({ uid }: { uid: string }) {
                 />
               </View>
             </View>
-            {own ? (
+            <View style={[s.row, { gap: space[8] }]}>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Edit profile"
-                onPress={() => router.push('/edit-profile')}
+                accessibilityLabel="Share profile"
+                onPress={() =>
+                  void Share.share({
+                    message: shareMessage(
+                      'user',
+                      uid,
+                      user.data?.username ? `@${user.data.username}` : undefined,
+                    ),
+                  }).catch(() => setError('Could not open sharing.'))
+                }
                 style={({ pressed }) => [styles.editButton, { opacity: pressed ? 0.7 : 1 }]}
               >
-                <Ionicons name="pencil-outline" size={18} color={c.text} />
+                <Ionicons name="share-outline" size={18} color={c.text} />
               </Pressable>
-            ) : currentUid ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ selected: !!following.data }}
-                onPress={async () => {
-                  try {
-                    await follow(currentUid, uid, 'user', !!following.data);
-                  } catch (e) {
-                    setError(errorMessage(e));
-                  }
-                }}
-                style={({ pressed }) => [
-                  styles.followButton,
-                  following.data ? styles.following : null,
-                  { opacity: pressed ? 0.7 : 1 },
-                ]}
-              >
-                <Text style={[styles.followText, following.data && { color: c.text }]}>
-                  {following.data ? 'Following' : 'Follow'}
-                </Text>
-              </Pressable>
-            ) : null}
+              {own ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Edit profile"
+                  onPress={() => router.push('/edit-profile')}
+                  style={({ pressed }) => [styles.editButton, { opacity: pressed ? 0.7 : 1 }]}
+                >
+                  <Ionicons name="pencil-outline" size={18} color={c.text} />
+                </Pressable>
+              ) : currentUid ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: !!following.data }}
+                  onPress={async () => {
+                    try {
+                      await follow(currentUid, uid, 'user', !!following.data);
+                    } catch (e) {
+                      setError(errorMessage(e));
+                    }
+                  }}
+                  style={({ pressed }) => [
+                    styles.followButton,
+                    following.data ? styles.following : null,
+                    { opacity: pressed ? 0.7 : 1 },
+                  ]}
+                >
+                  <Text style={[styles.followText, following.data && { color: c.text }]}>
+                    {following.data ? 'Following' : 'Follow'}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
           </View>
           <View style={{ gap: space[4] }}>
             <Text style={[s.title, s.displayHeading]}>
@@ -140,6 +164,7 @@ export function Profile({ uid }: { uid: string }) {
             {(
               [
                 ['follower', 'followers', user.data?.followerCount || 0],
+                ['following', 'following', user.data?.followingCount || 0],
                 ['save', 'saved', user.data?.saveCount || 0],
                 [
                   'rating',
@@ -152,9 +177,8 @@ export function Profile({ uid }: { uid: string }) {
                   (user.data?.reviewCount || 0) + (user.data?.releaseReviewCount || 0),
                 ],
               ] as [string, string, number][]
-            ).map(([one, many, count], index) => (
-              <View key={many} style={styles.statItem}>
-                {index > 0 ? <Text style={styles.statDot}>·</Text> : null}
+            ).map(([one, many, count], index) => {
+              const label = (
                 <Text
                   accessibilityLabel={`${count} ${count === 1 ? one : many}`}
                   style={styles.statLabel}
@@ -162,8 +186,29 @@ export function Profile({ uid }: { uid: string }) {
                   <Text style={styles.statNumber}>{count.toLocaleString()}</Text>{' '}
                   {count === 1 ? one : many}
                 </Text>
-              </View>
-            ))}
+              );
+              return (
+                <View key={many} style={styles.statItem}>
+                  {index > 0 ? <Text style={styles.statDot}>·</Text> : null}
+                  {many === 'followers' || many === 'following' ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      hitSlop={8}
+                      onPress={() =>
+                        router.push({
+                          pathname: '/user/follows/[id]',
+                          params: { id: uid, list: many },
+                        })
+                      }
+                    >
+                      {label}
+                    </Pressable>
+                  ) : (
+                    label
+                  )}
+                </View>
+              );
+            })}
           </View>
           {user.data?.scenes?.length ? (
             <View style={{ gap: space[10] }}>

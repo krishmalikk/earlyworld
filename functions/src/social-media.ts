@@ -3,7 +3,7 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { GoogleAuth } from 'google-auth-library';
 import { getStorage } from 'firebase-admin/storage';
 import { db, FieldValue, hash } from './core';
-import { Timestamp, touchSocial } from './social-core';
+import { Timestamp, notify, touchSocial } from './social-core';
 import { publishSubmission } from './social-publish';
 
 export const receivePostMedia = onObjectFinalized(
@@ -57,11 +57,11 @@ export async function advancePost(postId: string) {
     await publishSubmission('text', hash(`profile:${postId.slice('profile_'.length)}`));
     return;
   }
-  const ready = await db.runTransaction(async (tx) => {
+  const owner = await db.runTransaction(async (tx) => {
     const ref = db.doc(`_postDrafts/${postId}`),
       snap = await tx.get(ref),
       p = snap.data();
-    if (!p || p.status !== 'processing') return false;
+    if (!p || p.status !== 'processing') return null;
     const media = await Promise.all(
       p.mediaIds.map((id: string) => tx.get(db.doc(`_socialMedia/${id}`))),
     );
@@ -71,14 +71,19 @@ export async function advancePost(postId: string) {
         reason: 'A photo could not be processed. Remove it and choose another.',
       });
       touchSocial(tx, p.uid);
-      return false;
+      return null;
     }
-    if (!media.every((m) => m.data()?.status === 'ready')) return false;
+    if (!media.every((m) => m.data()?.status === 'ready')) return null;
     tx.update(ref, { status: 'pending', updatedAt: FieldValue.serverTimestamp() });
     touchSocial(tx, p.uid);
-    return true;
+    return p.uid as string;
   });
-  if (ready) await publishSubmission('post', postId);
+  if (!owner) return;
+  // The owner left while photos processed; tell them the post went live.
+  if (await publishSubmission('post', postId))
+    await db.runTransaction(async (tx) =>
+      notify(tx, owner, `published:${postId}`, { type: 'published', actorUid: owner, postId }),
+    );
 }
 export const processPostMedia = onSchedule(
   { schedule: 'every 1 minutes', timeoutSeconds: 300, maxInstances: 1 },
@@ -159,9 +164,23 @@ export const processPostMedia = onSchedule(
     }
   },
 );
+export const NOTICE_RETENTION_DAYS = 90;
+/** Activity notices are a recent log, not a permanent record. */
+export async function expireNotices(now = Date.now()) {
+  const stale = await db
+    .collectionGroup('notifications')
+    .where('createdAt', '<', Timestamp.fromMillis(now - NOTICE_RETENTION_DAYS * 86400000))
+    .limit(200)
+    .get();
+  const batch = db.batch();
+  stale.docs.forEach((d) => batch.delete(d.ref));
+  await batch.commit();
+  return stale.size;
+}
 export const cleanPostMedia = onSchedule(
   { schedule: 'every 60 minutes', timeoutSeconds: 300, maxInstances: 1 },
   async () => {
+    await expireNotices();
     const stale = await db
       .collection('_postDrafts')
       .where('status', 'in', ['draft', 'rejected', 'deleted'])
@@ -225,6 +244,11 @@ export const cleanPostMedia = onSchedule(
           await db.doc(`_moderation/comment_${comment.id}`).delete();
           await comment.ref.delete();
         }
+        const notices = await db
+          .collection(`users/${item.data().uid}/notifications`)
+          .where('postId', '==', item.id)
+          .get();
+        for (const notice of notices.docs) await notice.ref.delete();
         await item.ref.delete();
       }
     }

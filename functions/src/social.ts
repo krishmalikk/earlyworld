@@ -10,10 +10,14 @@ import {
 } from '../../shared/social';
 import {
   assertAdmin,
+  authorVisibility,
   bad,
   followedPage,
-  blocked,
+  followsUser,
   makeCursor,
+  noticeRef,
+  notify,
+  perRequest,
   postDTO,
   quota,
   readCursor,
@@ -233,6 +237,8 @@ export const listPosts = onCall(async (r) => {
   const c = await socialContext(r),
     mode = r.data?.mode || 'explore';
   await rateLimit(c.uid, 'socialRead', 600);
+  const visible = authorVisibility(c.uid),
+    follows = followsUser(c.uid);
   if (!['explore', 'following', 'profile', 'own', 'submissions', 'bookmarks'].includes(mode))
     throw new HttpsError('invalid-argument', 'Unknown feed.');
   if (mode === 'bookmarks') {
@@ -246,10 +252,7 @@ export const listPosts = onCall(async (r) => {
       items = [];
     for (const d of docs.docs) {
       const p = await db.doc(`posts/${d.id}`).get();
-      if (p.data()?.status !== 'published') continue;
-      const account = (await db.doc(`_socialAccounts/${p.data()!.uid}`).get()).data();
-      if ((await blocked(c.uid, p.data()!.uid)) || account?.suspended || account?.deleting)
-        continue;
+      if (p.data()?.status !== 'published' || !(await visible(p.data()!.uid))) continue;
       items.push(await postDTO(p.id, p.data()!, c.uid));
     }
     const last = docs.docs.at(-1);
@@ -281,20 +284,8 @@ export const listPosts = onCall(async (r) => {
     if (p.purpose === 'profile') continue;
     if (mode === 'submissions' && (p.status === 'published' || (p.status === 'draft' && !p.reason)))
       continue;
-    if (p.status === 'deleted' || (!owner && (await blocked(c.uid, p.uid)))) continue;
-    const account = (await db.doc(`_socialAccounts/${p.uid}`).get()).data();
-    if (account?.suspended || account?.deleting) continue;
-    if (
-      mode === 'following' &&
-      p.uid !== c.uid &&
-      (await db.doc(`users/${c.uid}/following/${p.uid}`).get()).data()?.targetType !== 'user'
-    )
-      continue;
-    if (
-      mode === 'bookmarks' &&
-      !(await db.doc(`users/${c.uid}/postBookmarks/${d.id}`).get()).exists
-    )
-      continue;
+    if (p.status === 'deleted' || !(await visible(p.uid))) continue;
+    if (mode === 'following' && p.uid !== c.uid && !(await follows(p.uid))) continue;
     items.push(await postDTO(d.id, p, c.uid, owner));
     if (items.length === 25) break;
   }
@@ -332,10 +323,14 @@ export const setPostInteraction = onCall(async (r) => {
     if (old.exists === r.data.active) return;
     if (r.data.active) tx.set(ref, { uid, postId: id, createdAt: FieldValue.serverTimestamp() });
     else tx.delete(ref);
-    if (kind === 'like')
+    if (kind === 'like') {
       tx.update(post, {
         likeCount: Math.max(0, (p.data()?.likeCount || 0) + (r.data.active ? 1 : -1)),
       });
+      const key = `like:${id}:${uid}`;
+      if (r.data.active) notify(tx, author, key, { type: 'like', actorUid: uid, postId: id });
+      else tx.delete(noticeRef(author, key));
+    }
     touchSocial(tx, uid);
   });
   return { ok: true };
@@ -385,20 +380,20 @@ export const listPostComments = onCall(async (r) => {
   const cursor = readCursor(r.data?.cursor);
   if (cursor) q = q.startAfter(...cursor);
   const snap = await q.limit(250).get(),
-    items = [];
+    items = [],
+    visible = authorVisibility(uid),
+    profile = perRequest(async (id) => (await db.doc(`users/${id}`).get()).data());
   let next = null;
   for (const d of snap.docs) {
     const p = d.data();
-    const account = (await db.doc(`_socialAccounts/${p.uid}`).get()).data();
     next = makeCursor(p.createdAt, d.id);
     if (
+      p.status === 'deleted' ||
       (p.status !== 'approved' && p.uid !== uid) ||
-      ['suspended', 'deleting'].some((key) => account?.[key]) ||
-      (await blocked(uid, p.uid)) ||
-      p.status === 'deleted'
+      !(await visible(p.uid))
     )
       continue;
-    const a = (await db.doc(`users/${p.uid}`).get()).data();
+    const a = await profile(p.uid);
     items.push({
       id: d.id,
       uid: p.uid,
@@ -426,8 +421,10 @@ export const deleteSocialContent = onCall(async (r) => {
       pub = await tx.get(publicRef);
     if (p.status === 'deleted') return;
     tx.update(ref, { status: 'deleted', updatedAt: FieldValue.serverTimestamp() });
-    if (comment && p.status === 'approved' && pub.exists)
+    if (comment && p.status === 'approved' && pub.exists) {
       tx.update(publicRef, { commentCount: Math.max(0, (pub.data()!.commentCount || 0) - 1) });
+      tx.delete(noticeRef(pub.data()!.uid, `comment:${id}`));
+    }
     if (!comment) {
       if (pub.exists) tx.update(publicRef, { status: 'deleted' });
       tx.set(db.doc(`_socialCleanup/${id}`), {
@@ -477,6 +474,8 @@ export const setUserBlock = onCall(async (r) => {
     batch.delete(db.doc(`users/${target}/following/${uid}`));
     batch.delete(db.doc(`users/${uid}/matches/${target}`));
     batch.delete(db.doc(`users/${target}/matches/${uid}`));
+    batch.delete(noticeRef(uid, `match:${target}`));
+    batch.delete(noticeRef(target, `match:${uid}`));
   } else {
     batch.delete(ref);
     batch.delete(db.doc(`users/${uid}/blockedUsers/${target}`));
@@ -493,6 +492,11 @@ export const setUserBlock = onCall(async (r) => {
     { merge: true },
   );
   await batch.commit();
+  return { ok: true };
+});
+export const markActivitySeen = onCall(async (r) => {
+  const { uid } = await socialContext(r);
+  await db.doc(`users/${uid}/socialState/activity`).set({ seenAt: FieldValue.serverTimestamp() });
   return { ok: true };
 });
 export const resolveSocialReport = onCall(async (r) => {

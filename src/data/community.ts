@@ -20,18 +20,30 @@ export function useCommunity<T extends { id: string }>(
   enabled = true,
 ) {
   const uid = useLocal((s) => s.uid),
-    { version } = useSocial(),
+    { version, communityCache } = useSocial(),
     active = useForeground();
   const key = JSON.stringify([uid, options]),
     latest = useRef(key);
   latest.current = key;
+  // The last result shows at once on return; the normal request below then refreshes it.
+  const cacheKey = `${count}:${key}`;
+  const opening = () => {
+    const cached = communityCache.get(cacheKey);
+    return {
+      key,
+      data: (cached?.data || []) as T[],
+      error: null,
+      loading: true,
+      more: cached?.more || false,
+    };
+  };
   const [state, set] = useState<{
     key: string;
     data: T[];
     error: string | null;
     loading: boolean;
     more: boolean;
-  }>({ key, data: [], error: null, loading: true, more: false });
+  }>(opening);
   const [reload, setReload] = useState(0);
   useFocusEffect(
     useCallback(() => {
@@ -41,11 +53,7 @@ export function useCommunity<T extends { id: string }>(
   useEffect(() => {
     let live = true;
     if (!uid || !enabled || !active) return;
-    set((old) =>
-      old.key === key
-        ? { ...old, loading: true }
-        : { key, data: [], error: null, loading: true, more: false },
-    );
+    set((old) => (old.key === key ? { ...old, loading: true } : opening()));
     (async () => {
       const items: T[] = [];
       let cursor: string | null = null;
@@ -58,20 +66,18 @@ export function useCommunity<T extends { id: string }>(
         items.push(...page.items.map((p) => hydrate(p) as T));
         cursor = page.cursor;
       } while (cursor && items.length < count);
-      if (live)
-        set({
-          key,
-          data: items.slice(0, count),
-          error: null,
-          loading: false,
-          more: !!cursor || items.length > count,
-        });
+      const data = items.slice(0, count),
+        more = !!cursor || items.length > count;
+      communityCache.set(cacheKey, { data, more });
+      if (live) set({ key, data, error: null, loading: false, more });
     })().catch((e) => {
+      const denied = /not-found|permission-denied/.test(String(e?.code));
+      if (denied) communityCache.delete(cacheKey);
       if (live)
         set((old) => ({
           ...old,
           key,
-          data: /not-found|permission-denied/.test(String(e?.code)) ? [] : old.data,
+          data: denied ? [] : old.data,
           loading: false,
           error: errorMessage(e),
         }));
@@ -80,5 +86,5 @@ export function useCommunity<T extends { id: string }>(
       live = false;
     };
   }, [key, count, version, reload, enabled, active]);
-  return state.key === key ? state : { key, data: [], error: null, loading: true, more: false };
+  return state.key === key ? state : opening();
 }

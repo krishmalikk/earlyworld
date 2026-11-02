@@ -81,6 +81,7 @@ for (const provider of ['password', 'google.com', 'apple.com']) {
       [`_followState/${hash(`${uid}:other`)}`]: { following: true },
       [`tracks/t/comments/c`]: { uid },
       'activity/a': { actorUid: uid },
+      'users/other/notifications/n': { actorUid: uid, type: 'follow' },
       [`_socialBlocks/${hash(`${uid}:other`)}`]: { uid, target: 'other' },
       [`users/other/blockedBy/${uid}`]: { uid },
     };
@@ -130,6 +131,7 @@ for (const provider of ['password', 'google.com', 'apple.com']) {
       'users/other/following/disposable',
       'tracks/t/comments/c',
       'activity/a',
+      'users/other/notifications/n',
       'users/other/blockedBy/disposable',
     ])
       assert.equal((await db.doc(path).get()).exists, false, path);

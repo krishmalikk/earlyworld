@@ -1,4 +1,4 @@
-import { socialEvent } from '../../src/data/social-telemetry';
+import { socialEvent } from '../../../src/data/social-telemetry';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams, useNavigation, router } from 'expo-router';
@@ -6,22 +6,26 @@ import { usePreventRemove } from 'expo-router/react-navigation';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { putFile, ref as storageRef } from '@react-native-firebase/storage';
-import { useLocal } from '../../src/state/local';
-import { call, errorMessage, storage } from '../../src/lib/firebase';
-import { useSocial, useSocialStatus } from '../../src/data/social';
+import { useLocal } from '../../../src/state/local';
+import { call, errorMessage, storage } from '../../../src/lib/firebase';
+import { useSocial, useSocialStatus } from '../../../src/data/social';
 import {
   clearComposerFiles,
   emptyPost,
   keepComposerFile,
   newPostId,
   type ComposerPost,
-} from '../../src/data/post-composer';
-import { useCatalogPage } from '../../src/data/catalog';
-import { PostAttachment } from '../../src/components/PostAttachment';
-import type { SocialPost, CatalogAttachment } from '../../shared/social';
-import { SOCIAL_LIMITS } from '../../shared/social';
-import { SCENES } from '../../shared/domain';
-import { space } from '../../shared/theme';
+} from '../../../src/data/post-composer';
+import { useCatalogPage } from '../../../src/data/catalog';
+import { PostAttachment } from '../../../src/components/PostAttachment';
+import { TrackRow } from '../../../src/components/TrackRow';
+import { ReleaseCard } from '../../../src/components/Releases';
+import { EntityCard } from '../../../src/components/EntityCard';
+import type { Entity, Release, Track } from '../../../src/data/types';
+import type { SocialPost, CatalogAttachment } from '../../../shared/social';
+import { SOCIAL_LIMITS } from '../../../shared/social';
+import { SCENES } from '../../../shared/domain';
+import { space } from '../../../shared/theme';
 import {
   Artwork,
   Button,
@@ -32,7 +36,7 @@ import {
   Page,
   s,
   Section,
-} from '../../src/components/ui';
+} from '../../../src/components/ui';
 export default function Create() {
   const uid = useLocal((s) => s.uid);
   return uid ? <Composer key={uid} uid={uid} /> : null;
@@ -400,25 +404,45 @@ function Composer({ uid }: { uid: string }) {
               placeholder="Search catalog"
             />
             <ErrorLine message={catalog.error} />
-            {catalog.data.map((item) => (
-              <Button
-                key={item.id}
-                quiet
-                disabled={busy}
-                onPress={() => {
-                  update({
-                    attachment: {
-                      kind,
-                      id: item.id,
-                      label: 'title' in item ? item.title : item.name,
-                    },
-                  });
-                  setPicking(false);
-                }}
-              >
-                {'title' in item ? item.title : item.name}
-              </Button>
-            ))}
+            {(() => {
+              const choose = (item: { id: string }, label: string) => {
+                update({ attachment: { kind, id: item.id, label } });
+                setPicking(false);
+              };
+              if (kind === 'track')
+                return (catalog.data as Track[]).map((item) => (
+                  <TrackRow
+                    key={item.id}
+                    track={item}
+                    variant="card"
+                    showOwnRating={false}
+                    selected={draft.attachment?.id === item.id}
+                    onSelect={() => choose(item, item.title)}
+                  />
+                ));
+              if (kind === 'release')
+                return (catalog.data as Release[]).map((item) => (
+                  <ReleaseCard
+                    key={item.id}
+                    release={item}
+                    selected={draft.attachment?.id === item.id}
+                    onSelect={() => choose(item, item.title)}
+                  />
+                ));
+              return (
+                <View style={s.grid}>
+                  {(catalog.data as Entity[]).map((item) => (
+                    <EntityCard
+                      key={item.id}
+                      entity={item}
+                      type={kind}
+                      selected={draft.attachment?.id === item.id}
+                      onPress={() => choose(item, item.name)}
+                    />
+                  ))}
+                </View>
+              );
+            })()}
             {catalog.hasMore ? (
               <Button quiet onPress={catalog.loadMore}>
                 More results

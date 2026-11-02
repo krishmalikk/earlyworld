@@ -1,5 +1,5 @@
 import { db, FieldValue, hash } from './core';
-import { touchSocial } from './social-core';
+import { notify, touchSocial } from './social-core';
 import { normalizePost } from '../../shared/social';
 
 export type SubmissionKind = 'post' | 'comment' | 'text';
@@ -49,6 +49,7 @@ export async function publishSubmission(kind: SubmissionKind, id: string) {
       if (a.exists || b.exists || owner.data()?.suspended || owner.data()?.deleting) return false;
       tx.update(draftRef, { status: 'approved', reason: '' });
       tx.update(postRef, { commentCount: (post.data()!.commentCount || 0) + 1 });
+      notify(tx, author, `comment:${id}`, { type: 'comment', actorUid: p.uid, postId: p.postId });
     } else {
       const target = db.doc(p.targetPath),
         existing = await tx.get(target);

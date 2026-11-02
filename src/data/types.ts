@@ -59,6 +59,8 @@ export type User = {
   bio: string;
   saveCount: number;
   followerCount: number;
+  /** Returned by the `profile` community read. */
+  followingCount?: number;
   ratingCount?: number;
   reviewCount?: number;
   favoriteTrackIds?: string[];
@@ -112,6 +114,13 @@ export type Match = {
 };
 export type Follow = { id: string; targetId: string; targetType: 'user' | EntityType };
 
+export type ActivityNotice = {
+  id: string;
+  type: 'follow' | 'like' | 'comment' | 'match' | 'published';
+  actorUid: string;
+  postId?: string;
+  createdAt: Stamp;
+};
 export type Rating = RatingValue & { id: string; createdAt: Stamp; updatedAt: Stamp };
 
 export type Production = {

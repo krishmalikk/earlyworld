@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { space, radius, fontWeight } from '../../shared/theme';
 import { useCatalogIds, useCatalogPage } from '../data/catalog';
+import { useSocialStatus } from '../data/social';
 import { useRatings } from '../data/ratings';
 import { useDocument } from '../data/listeners';
 import type { Release, ReleaseRating, Stamp } from '../data/types';
@@ -88,6 +89,7 @@ export function ArtistReleases({ artistId }: { artistId: string }) {
     soundcloud?: { urn: string };
   }>(ref);
   const list = page.data;
+  const admin = useSocialStatus().data?.admin === true;
   const [busy, setBusy] = useState(false),
     [error, setError] = useState<string | null>(null);
   return (
@@ -105,9 +107,9 @@ export function ArtistReleases({ artistId }: { artistId: string }) {
       })}
       {!list.length ? (
         <Text style={s.muted}>
-          {artist.data?.releaseSync?.complete
-            ? 'No verified releases available yet.'
-            : 'Find albums, EPs, and mixtapes from this artist.'}
+          {admin && !artist.data?.releaseSync?.complete
+            ? 'Find albums, EPs, and mixtapes from this artist.'
+            : 'No verified releases available yet.'}
         </Text>
       ) : null}
       <ErrorLine message={error || artist.error || page.error} />
@@ -116,7 +118,7 @@ export function ArtistReleases({ artistId }: { artistId: string }) {
           More releases
         </Button>
       ) : null}
-      {artist.data?.soundcloud?.urn && !artist.data.releaseSync?.complete ? (
+      {admin && artist.data?.soundcloud?.urn && !artist.data.releaseSync?.complete ? (
         <Button
           quiet
           busy={busy}
@@ -230,13 +232,14 @@ export function ReleaseReviews({
 }
 
 export function ReleaseCatalogLoader() {
+  const admin = useSocialStatus().data?.admin === true;
   const [busy, setBusy] = useState(false),
     [complete, setComplete] = useState(false),
     [error, setError] = useState<string | null>(null);
   return (
     <View style={{ gap: space[8] }}>
       <Text style={s.muted}>Albums, EPs, and mixtapes from artists in earlyworld.</Text>
-      {!complete ? (
+      {!admin ? null : !complete ? (
         <Button
           quiet
           busy={busy}

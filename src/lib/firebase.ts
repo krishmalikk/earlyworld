@@ -8,6 +8,7 @@ import {
 } from '@react-native-firebase/functions';
 import { getStorage, connectStorageEmulator } from '@react-native-firebase/storage';
 import { getCrashlytics, recordError } from '@react-native-firebase/crashlytics';
+import { describeError } from '../../shared/errors';
 export const auth = getAuth(getApp());
 export const db = getFirestore(getApp());
 export const functions = getFunctions(getApp(), 'us-central1');
@@ -29,11 +30,19 @@ export async function call<T = unknown>(
 }
 export function report(error: unknown) {
   if (!__DEV__)
-    recordError(getCrashlytics(), new Error((error instanceof Error ? error.message : String(error)).replace(/https?:\/\/[^\s]+/g, '[URL removed]')));
+    recordError(
+      getCrashlytics(),
+      new Error(
+        (error instanceof Error ? error.message : String(error)).replace(
+          /https?:\/\/[^\s]+/g,
+          '[URL removed]',
+        ),
+      ),
+    );
 }
+/** Friendly text for the screen; only unexpected failures reach Crashlytics. */
 export function errorMessage(error: unknown) {
-  report(error);
-  return error instanceof Error
-    ? error.message.replace(/^\[[^\]]+\]\s*/, '')
-    : 'Something went wrong. Try again.';
+  const { message, report: reportable } = describeError(error);
+  if (reportable) report(error);
+  return message;
 }

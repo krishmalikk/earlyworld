@@ -9,6 +9,7 @@ import { fontSize, fontWeight, lineHeight, radius, space, tracking } from '../..
 import { useLocal } from '../state/local';
 import { useCatalogPage } from '../data/catalog';
 import { useCollection, useDocument } from '../data/listeners';
+import { useSocialStatus } from '../data/social';
 import { follow } from '../data/actions';
 import { call, db, errorMessage } from '../lib/firebase';
 import type { Entity, Follow, Production, Rotation, Track } from '../data/types';
@@ -20,6 +21,7 @@ import { WaveBackground } from './AuthDecor';
 type Row = { id: string; track: Track } | { id: string; production: Production };
 export function ProducerProfile({ id }: { id: string }) {
   const uid = useLocal((state) => state.uid);
+  const admin = useSocialStatus().data?.admin === true;
   const insets = useSafeAreaInsets();
   const [mode, setMode] = useState<Mode>('Genius credits'),
     [count, setCount] = useState(25);
@@ -249,9 +251,7 @@ export function ProducerProfile({ id }: { id: string }) {
                     : 'No catalog tracks yet.'
               }
               detail={
-                mode === 'Genius credits'
-                  ? 'Load credits below, or browse tracks already in earlyworld.'
-                  : undefined
+                mode === 'Genius credits' ? 'Browse the tracks already in earlyworld.' : undefined
               }
             />
           </View>
@@ -259,7 +259,7 @@ export function ProducerProfile({ id }: { id: string }) {
         ListFooterComponent={
           <View style={[styles.sheetFooter, { paddingBottom: insets.bottom + space[30] }]}>
             {mode === 'Genius credits' &&
-            ((sync?.verifiedCount || 0) > productions.data.length || !sync?.complete) ? (
+            ((sync?.verifiedCount || 0) > productions.data.length || (admin && !sync?.complete)) ? (
               <Button
                 quiet
                 busy={syncing}

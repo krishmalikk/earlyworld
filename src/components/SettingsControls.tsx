@@ -3,19 +3,21 @@ import { Alert, Linking, Platform, Pressable, StyleSheet, Text, View } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
+import { sendEmailVerification, sendPasswordResetEmail } from '@react-native-firebase/auth';
 import {
-  getIdToken,
-  reload,
-  sendEmailVerification,
-  sendPasswordResetEmail,
-} from '@react-native-firebase/auth';
-import { signOut, prepareAccountDeletion, SignInCancelled } from '../lib/social-sign-in';
+  signOut,
+  prepareAccountDeletion,
+  refreshEmailVerified,
+  SignInCancelled,
+} from '../lib/social-sign-in';
 import { auth, call, errorMessage } from '../lib/firebase';
 import { useLocal } from '../state/local';
+import { useForeground } from '../data/listeners';
 import { useSocial, useSocialStatus } from '../data/social';
 import { clearComposerFiles } from '../data/post-composer';
 import { Button, Chip, ErrorLine, Field, Section, c, s } from './ui';
 import { radius, space } from '../../shared/theme';
+import { WEB_ORIGIN } from '../../shared/links';
 
 export const appVersion = Constants.nativeAppVersion || Constants.expoConfig?.version || 'Unknown';
 export const appBuild = Constants.nativeBuildVersion || 'Development';
@@ -127,9 +129,79 @@ export function SettingsGroup({ title, children }: { title: string; children: Re
     </Section>
   );
 }
-export function AccountControls() {
+const RESEND_SECONDS = 60;
+/** Sends and confirms the email link; also notices when someone verifies in their mail app. */
+export function VerifyEmailControls({ onVerified }: { onVerified?: () => void }) {
   const action = useSettingsAction(),
-    { changed } = useSocial();
+    { changed } = useSocial(),
+    active = useForeground();
+  const [wait, setWait] = useState(0);
+  const finished = useRef(false),
+    done = useRef(onVerified);
+  done.current = onVerified;
+  const finish = () => {
+    if (finished.current) return;
+    finished.current = true;
+    changed();
+    done.current?.();
+  };
+  useEffect(() => {
+    if (!active) return;
+    let live = true;
+    refreshEmailVerified()
+      .then((verified) => {
+        if (live && verified) finish();
+      })
+      .catch(() => {
+        /* The explicit button reports problems; this quiet check just tries again later. */
+      });
+    return () => {
+      live = false;
+    };
+  }, [active]);
+  useEffect(() => {
+    if (!wait) return;
+    const timer = setTimeout(() => setWait((n) => n - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [wait]);
+  const email = auth.currentUser?.email;
+  return (
+    <>
+      <Text style={s.muted}>
+        {email ? `The link goes to ${email}. ` : ''}If you can’t find it, check your spam folder.
+      </Text>
+      <ActionFeedback {...action} />
+      <Button
+        busy={action.busy}
+        onPress={() =>
+          void action.run(async () => {
+            if (await refreshEmailVerified()) return finish();
+            throw new Error(
+              'Your email is not verified yet. Open the link in your inbox, then try again.',
+            );
+          })
+        }
+      >
+        I’ve verified my email
+      </Button>
+      <Button
+        quiet
+        busy={action.busy}
+        disabled={wait > 0}
+        onPress={() =>
+          void action.run(async () => {
+            if (auth.currentUser) await sendEmailVerification(auth.currentUser);
+            setWait(RESEND_SECONDS);
+          }, 'Verification email sent. Check your inbox.')
+        }
+      >
+        {wait ? `Resend email in ${wait}s` : 'Resend email'}
+      </Button>
+    </>
+  );
+}
+export function AccountControls() {
+  const action = useSettingsAction();
   const user = auth.currentUser;
   return (
     <>
@@ -140,39 +212,7 @@ export function AccountControls() {
         <Text style={s.muted}>{user?.emailVerified ? 'Verified' : 'Not verified'}</Text>
       </Section>
       <ActionFeedback {...action} />
-      {!user?.emailVerified ? (
-        <>
-          <Button
-            busy={action.busy}
-            onPress={() =>
-              void action.run(async () => {
-                if (user) await sendEmailVerification(user);
-              }, 'Verification email sent. Check your inbox.')
-            }
-          >
-            Send verification email
-          </Button>
-          <Button
-            quiet
-            busy={action.busy}
-            onPress={() =>
-              void action.run(async () => {
-                if (user) {
-                  await reload(user);
-                  await getIdToken(user, true);
-                  changed();
-                  if (!user.emailVerified)
-                    throw new Error(
-                      'Your email is not verified yet. Open the link in your inbox, then try again.',
-                    );
-                }
-              }, 'Email verified.')
-            }
-          >
-            I’ve verified my email
-          </Button>
-        </>
-      ) : null}
+      {!user?.emailVerified ? <VerifyEmailControls /> : null}
       <Button
         quiet
         busy={action.busy}
@@ -210,8 +250,7 @@ export function CommunityAccessControls() {
         </Text>
       ) : status.data.eligible ? (
         <Text style={s.text}>
-          Community eligibility confirmed. Publishing also requires a verified email and
-          availability of social features.
+          Community eligibility confirmed. Written reviews also require a verified email.
         </Text>
       ) : (
         <>
@@ -335,7 +374,7 @@ export function DeleteAccountControls() {
         onPress={() =>
           void action.run(async () => {
             try {
-              await Linking.openURL('https://earlyworld-6831c.web.app/delete-account.html');
+              await Linking.openURL(`${WEB_ORIGIN}/delete-account.html`);
             } catch {
               throw Error(
                 'Could not open the page. Email earlyworldofficial@gmail.com to request account deletion.',

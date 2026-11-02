@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import { authUid, db, FieldValue, hash, rateLimit, requiredText } from './core';
+import { adminUid, db, FieldValue, hash, rateLimit, requiredText } from './core';
 import { soundCloudToken, soundCloudSecrets, soundCloudIdentityRef } from './soundcloud';
 import { soundCloudMetadata, SoundCloudError } from './soundcloud-api';
 
@@ -291,7 +291,7 @@ export async function syncArtistReleasePage(artistId: string, request = releaseR
 export const syncArtistReleases = onCall(
   { secrets: soundCloudSecrets, timeoutSeconds: 180, maxInstances: 2 },
   async (request) => {
-    const uid = authUid(request),
+    const uid = adminUid(request),
       artistId = requiredText(request.data?.artistId, 'artist', 100);
     if (!/^[\w-]+$/.test(artistId)) throw new HttpsError('invalid-argument', 'Choose an artist.');
     await rateLimit(uid, 'releaseSync', 30);
@@ -357,7 +357,7 @@ export async function syncReleaseCatalogPage(sync = syncArtistReleasePage) {
 export const syncReleaseCatalog = onCall(
   { secrets: soundCloudSecrets, timeoutSeconds: 300, maxInstances: 1 },
   async (request) => {
-    const uid = authUid(request);
+    const uid = adminUid(request);
     await rateLimit(uid, 'releaseCatalogSync', 30);
     try {
       return await syncReleaseCatalogPage();

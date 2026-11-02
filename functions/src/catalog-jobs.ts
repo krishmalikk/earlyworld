@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { onCall } from 'firebase-functions/v2/https';
-import { authUid, db, FieldValue, hash, rateLimit, requiredText } from './core';
+import { adminUid, db, FieldValue, hash, rateLimit, requiredText } from './core';
 import { enrich, GENIUS_ACCESS_TOKEN, geniusApi, GeniusRequestError } from './genius';
 
 export async function enqueueGenius(trackId: string, priority: 0 | 10) {
@@ -30,7 +30,7 @@ export async function enqueueGenius(trackId: string, priority: 0 | 10) {
   });
 }
 export const requestTrackEnrichment = onCall(async (request) => {
-  const uid = authUid(request),
+  const uid = adminUid(request),
     id = requiredText(request.data?.trackId, 'track', 100);
   if (id.includes('/')) throw new Error('Invalid track.');
   await rateLimit(uid, 'requestTrackEnrichment', 60);

@@ -14,6 +14,7 @@ import { useLocal } from '../state/local';
 import { useDocument, useForeground } from './listeners';
 import { useCursorPages } from './useCursorPages';
 import { MediaRenewals } from '../../shared/media-renewal';
+import { RecentCache } from './recent-cache';
 import type { SocialPage, SocialPost } from '../../shared/social';
 export type SocialStatus = {
   creation: boolean;
@@ -24,9 +25,13 @@ export type SocialStatus = {
   supportEmail: string;
   policyVersion: string;
 };
+export type CommunityEntry = { data: unknown[]; more: boolean };
 const Context = createContext({
   version: 0,
   changed: () => {},
+  communityCache: new RecentCache<CommunityEntry>(),
+  /** Drops remembered screens when what this account may see has changed. */
+  clearCommunity: () => {},
   registerMedia:
     (_uri: string): (() => void) =>
     () => {},
@@ -48,6 +53,8 @@ function AccountSocial({ uid, children }: { uid: string | null; children: React.
   const [version, setVersion] = useState(0);
   const active = useForeground();
   const renewals = useMemo(() => new MediaRenewals(), [uid]);
+  const communityCache = useMemo(() => new RecentCache<CommunityEntry>(), [uid]);
+  const clearCommunity = useCallback(() => communityCache.clear(), [communityCache]);
   const changed = useCallback(() => setVersion((v) => v + 1), []);
   const registerMedia = useCallback((uri: string) => renewals.register(uri), [renewals]);
   const mediaFailed = useCallback(
@@ -67,8 +74,8 @@ function AccountSocial({ uid, children }: { uid: string | null; children: React.
   }, [uid, active, renewals, changed]);
   useEffect(() => setVersion((v) => v + 1), [global.data, own.data]);
   const value = useMemo(
-    () => ({ version, changed, registerMedia, mediaFailed }),
-    [version, changed, registerMedia, mediaFailed],
+    () => ({ version, changed, communityCache, clearCommunity, registerMedia, mediaFailed }),
+    [version, changed, communityCache, clearCommunity, registerMedia, mediaFailed],
   );
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }

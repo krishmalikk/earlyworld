@@ -121,7 +121,9 @@ test('username publication and reservation cannot bypass the server moderation q
     onboardingStep: 2,
   });
   await assertFails(batch.commit());
-  await env.withSecurityRulesDisabled(async ctx=>{await setDoc(doc(ctx.firestore(),'usernames/early'),{uid:'alice',createdAt:new Date()});});
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'usernames/early'), { uid: 'alice', createdAt: new Date() });
+  });
   const other = env.authenticatedContext('bob').firestore(),
     second = writeBatch(other);
   second.set(doc(other, 'usernames/early'), { uid: 'bob', createdAt: serverTimestamp() });
@@ -354,6 +356,22 @@ test('catalog search, queue controls, jobs, and provider snapshots are private a
   }
 });
 
+test('activity notices are owner-readable and server-written', async () => {
+  await env.withSecurityRulesDisabled((ctx) =>
+    setDoc(doc(ctx.firestore(), 'users/alice/notifications/n'), { type: 'follow' }),
+  );
+  await assertSucceeds(
+    getDoc(doc(env.authenticatedContext('alice').firestore(), 'users/alice/notifications/n')),
+  );
+  await assertFails(
+    getDoc(doc(env.authenticatedContext('bob').firestore(), 'users/alice/notifications/n')),
+  );
+  await assertFails(
+    setDoc(doc(env.authenticatedContext('alice').firestore(), 'users/alice/notifications/x'), {
+      type: 'like',
+    }),
+  );
+});
 test('private social state cannot be read or published directly, including admin clients', async () => {
   for (const path of [
     'posts/p',

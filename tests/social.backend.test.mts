@@ -262,6 +262,18 @@ test('review text publishes immediately; revisions replace it and counts stay ex
   await set('');
   assert.equal((await db.doc('users/alice').get()).data()!.reviewCount, 0);
 });
+test('written reviews require a verified email; star ratings do not', async () => {
+  const { setTrackRating, ratingId } = await import('../functions/src/ratings.ts');
+  await db.doc('tracks/t').set({ title: 'Track' });
+  const unverified = (review: string) =>
+    setTrackRating.run({
+      auth: { uid: 'alice', token: { email_verified: false } },
+      data: { trackId: 't', halfStars: 8, review },
+    } as any);
+  await assert.rejects(unverified('A take'), { code: 'failed-precondition' });
+  assert.equal((await unverified('')).changed, true);
+  assert.equal((await db.doc(`ratings/${ratingId('alice', 't')}`).get()).data()!.review, '');
+});
 test('legacy review, profile, discussion and leaderboard reads enforce bidirectional blocking', async () => {
   const { readCommunity } = await import('../functions/src/social-reads.ts');
   await db.doc('ratings/r').set({
@@ -308,6 +320,287 @@ test('account deletion batches reconcile authored ratings, comments and outgoing
   const post = (await db.doc('posts/bobs').get()).data()!;
   assert.equal(post.likeCount, 0);
   assert.equal(post.commentCount, 0);
+});
+
+test('batched row profiles return minimal identity and withhold blocked or suspended listeners', async () => {
+  const { readCommunity } = await import('../functions/src/social-reads.ts');
+  await db.doc('users/alice').update({ bio: 'Not for rows', avatarUrl: 'https://a.example/p.jpg' });
+  await db.doc('users/carol').set({ username: 'carol', avatarUrl: '' });
+  await db.doc('users/dave').set({ username: 'dave', avatarUrl: '' });
+  await db.doc('_socialAccounts/carol').set({ suspended: true });
+  await api.setUserBlock.run(req('dave', { uid: 'bob', blocked: true }));
+  const page = await readCommunity.run(
+    req('bob', { kind: 'profiles', uids: ['alice', 'bob', 'carol', 'dave', 'missing', 'alice'] }),
+  );
+  assert.deepEqual(page.items, [
+    { id: 'alice', username: 'alice', avatarUrl: 'https://a.example/p.jpg' },
+    { id: 'bob', username: 'bob', avatarUrl: '' },
+  ]);
+  for (const uids of [[], 'alice', Array(31).fill('alice'), ['../private']])
+    await assert.rejects(readCommunity.run(req('bob', { kind: 'profiles', uids })), {
+      code: 'invalid-argument',
+    });
+  await assert.rejects(readCommunity.run({ data: { kind: 'profiles', uids: ['alice'] } } as any), {
+    code: 'unauthenticated',
+  });
+});
+
+test('listener search matches username prefixes and respects blocks, suspension and onboarding', async () => {
+  const { readCommunity } = await import('../functions/src/social-reads.ts');
+  const add = async (name: string, onboardingComplete = true) => {
+    await db.doc(`users/${name}`).set({ username: name, avatarUrl: '', onboardingComplete });
+    await db.doc(`usernames/${name}`).set({ uid: name });
+  };
+  for (const name of ['pluggfan', 'pluggking', 'pluggblocked', 'pluggsuspended', 'other'])
+    await add(name);
+  await add('pluggnew', false);
+  await db.doc('usernames/bob').set({ uid: 'bob' });
+  await db.doc('_socialAccounts/pluggsuspended').set({ suspended: true });
+  await api.setUserBlock.run(req('pluggblocked', { uid: 'bob', blocked: true }));
+  const ids = async (name: string) =>
+    (await readCommunity.run(req('bob', { kind: 'listeners', name }))).items.map((i: any) => i.id);
+  assert.deepEqual(await ids('PLUGG'), ['pluggfan', 'pluggking']);
+  assert.deepEqual(await ids('@pluggk'), ['pluggking']);
+  assert.deepEqual(await ids('bo'), [], 'your own account is not a result');
+  for (const name of ['p', '', '../x', 7])
+    await assert.rejects(readCommunity.run(req('bob', { kind: 'listeners', name })), {
+      code: 'invalid-argument',
+    });
+  const batch = db.batch();
+  for (let i = 0; i < 27; i++) {
+    const name = `page${String(i).padStart(2, '0')}`;
+    batch.set(db.doc(`users/${name}`), { username: name, onboardingComplete: true });
+    batch.set(db.doc(`usernames/${name}`), { uid: name });
+  }
+  await batch.commit();
+  const first = await readCommunity.run(req('bob', { kind: 'listeners', name: 'page' }));
+  const second = await readCommunity.run(
+    req('bob', { kind: 'listeners', name: 'page', cursor: first.cursor }),
+  );
+  assert.equal(first.items.length, 25);
+  assert.equal(second.items.length, 2);
+  assert.equal(second.cursor, null);
+});
+
+test('follower and following lists are public to listeners, paginate, and enforce blocks', async () => {
+  const { readCommunity } = await import('../functions/src/social-reads.ts');
+  const batch = db.batch();
+  for (let i = 0; i < 27; i++) {
+    const id = `fan${String(i).padStart(2, '0')}`,
+      followedAt = new Date(1700000000000 + i);
+    batch.set(db.doc(`users/${id}`), { username: id });
+    batch.set(db.doc(`users/${id}/following/alice`), {
+      targetId: 'alice',
+      targetType: 'user',
+      followedAt,
+    });
+    batch.set(db.doc(`users/alice/following/${id}`), {
+      targetId: id,
+      targetType: 'user',
+      followedAt,
+    });
+  }
+  batch.set(db.doc('users/alice/following/artist_a'), {
+    targetId: 'artist_a',
+    targetType: 'artist',
+    followedAt: new Date(1700000000000),
+  });
+  batch.set(db.doc('artists/artist_a'), { name: 'Artist A', imageUrl: 'https://a.example/a.jpg' });
+  await batch.commit();
+  await db.doc('_socialAccounts/fan00').set({ suspended: true });
+  for (const kind of ['followers', 'following']) {
+    const first = await readCommunity.run(req('bob', { kind, uid: 'alice' }));
+    const second = await readCommunity.run(
+      req('bob', { kind, uid: 'alice', cursor: first.cursor }),
+    );
+    const ids = [...first.items, ...second.items].map((i: any) => i.id);
+    assert.equal(ids.length, 26, kind);
+    assert.equal(new Set(ids).size, 26, kind);
+    assert.ok(!ids.includes('fan00') && !ids.includes('artist_a'), kind);
+    assert.equal(ids[0], 'fan26', `${kind} newest first`);
+    assert.equal(ids.at(-1), 'fan01', `${kind} oldest last`);
+    assert.equal(second.cursor, null, kind);
+  }
+  const artists = await readCommunity.run(
+    req('bob', { kind: 'following', uid: 'alice', targetType: 'artist' }),
+  );
+  assert.deepEqual(artists.items, [
+    { id: 'artist_a', name: 'Artist A', imageUrl: 'https://a.example/a.jpg' },
+  ]);
+  await assert.rejects(
+    readCommunity.run(req('bob', { kind: 'followers', uid: 'alice', targetType: 'artist' })),
+    { code: 'invalid-argument' },
+  );
+  const profile = await readCommunity.run(req('bob', { kind: 'profile', uid: 'alice' }));
+  assert.equal(profile.items[0].followingCount, 27);
+  await api.setUserBlock.run(req('alice', { uid: 'bob', blocked: true }));
+  await assert.rejects(readCommunity.run(req('bob', { kind: 'followers', uid: 'alice' })), {
+    code: 'not-found',
+  });
+});
+
+test('follows, likes and comments notify the owner once and undoing removes the notice', async () => {
+  const { onFollow } = await import('../functions/src/saves.ts');
+  const notices = async (uid = 'alice') =>
+    (await db.collection(`users/${uid}/notifications`).get()).docs.map((d) => d.data());
+  await save();
+  await submit();
+  const event = { params: { uid: 'bob', target: 'alice' } } as any;
+  await db.doc('users/bob/following/alice').set({ targetId: 'alice', targetType: 'user' });
+  await onFollow.run(event);
+  await onFollow.run(event);
+  assert.deepEqual(
+    (await notices()).map((n) => [n.type, n.actorUid]),
+    [['follow', 'bob']],
+  );
+  await db.doc('users/bob/following/alice').delete();
+  await onFollow.run(event);
+  assert.equal((await notices()).length, 0);
+  const like = (active: boolean, uid = 'bob') =>
+    api.setPostInteraction.run(req(uid, { id: 'one', kind: 'like', active }));
+  await like(true);
+  await like(true);
+  await like(true, 'alice');
+  assert.deepEqual(
+    (await notices()).map((n) => [n.type, n.postId]),
+    [['like', 'one']],
+  );
+  await like(false);
+  assert.equal((await notices()).length, 0);
+  const comment = { postId: 'one', requestId: 'noticed', body: 'Nice find' };
+  const created = await api.createPostComment.run(req('bob', comment));
+  await api.createPostComment.run(req('bob', comment));
+  await api.createPostComment.run(req('alice', { ...comment, requestId: 'mine' }));
+  assert.deepEqual(
+    (await notices()).map((n) => n.type),
+    ['comment'],
+  );
+  await api.deleteSocialContent.run(req('bob', { id: created.id, kind: 'comment' }));
+  assert.equal((await notices()).length, 0);
+  await api.markActivitySeen.run(req('alice'));
+  assert.ok((await db.doc('users/alice/socialState/activity').get()).data()!.seenAt);
+});
+
+test('a post that finishes processing tells its owner, and old notices expire', async () => {
+  const { advancePost, expireNotices } = await import('../functions/src/social-media.ts');
+  await db.doc('_socialMedia/ready-photo').set({
+    uid: 'alice',
+    postId: 'processed',
+    kind: 'photo',
+    status: 'ready',
+  });
+  await api.savePostDraft.run(
+    req('alice', { id: 'processed', content: { ...content(), mediaIds: ['ready-photo'] } }),
+  );
+  await db.doc('_postDrafts/processed').update({ status: 'processing' });
+  await advancePost('processed');
+  await advancePost('processed');
+  const notices = await db.collection('users/alice/notifications').get();
+  assert.deepEqual(
+    notices.docs.map((d) => [d.data().type, d.data().postId]),
+    [['published', 'processed']],
+  );
+  assert.equal((await db.doc('posts/processed').get()).data()?.status, 'published');
+  await db.doc('users/bob/notifications/old').set({
+    type: 'follow',
+    actorUid: 'alice',
+    createdAt: new Date(Date.now() - 91 * 86400000),
+  });
+  assert.equal(await expireNotices(), 1);
+  assert.equal((await db.doc('users/bob/notifications/old').get()).exists, false);
+  assert.equal((await db.collection('users/alice/notifications').get()).size, 1);
+});
+
+test('new matches notify after onboarding, once, and blocking removes them', async () => {
+  const { computeMatchesFor } = await import('../functions/src/matching.ts');
+  await db.doc('users/alice/saves/t').set({});
+  await db
+    .doc('tracks/t')
+    .set({ title: 'T', artistName: 'A', saveCount: 2, savers: ['alice', 'bob'] });
+  await computeMatchesFor('alice');
+  const count = async () => (await db.collection('users/alice/notifications').get()).size;
+  assert.equal(await count(), 0, 'the onboarding result is not news');
+  await db.doc('users/alice').update({ initialMatchesComputed: true });
+  await db.collection('users/alice/matches').doc('bob').delete();
+  await computeMatchesFor('alice');
+  await computeMatchesFor('alice');
+  assert.equal(await count(), 1);
+  await api.setUserBlock.run(req('alice', { uid: 'bob', blocked: true }));
+  assert.equal(await count(), 0);
+});
+
+test('list pages look up each author once per request', async () => {
+  const { readCommunity } = await import('../functions/src/social-reads.ts');
+  const batch = db.batch();
+  for (let i = 0; i < 30; i++) {
+    const at = new Date(1700000000000 + i);
+    batch.set(db.doc(`posts/once${i}`), {
+      ...content(),
+      uid: 'alice',
+      status: 'published',
+      publishedAt: at,
+      updatedAt: at,
+    });
+    batch.set(db.doc(`ratings/once${i}`), {
+      uid: 'alice',
+      trackId: 't',
+      halfStars: 8,
+      review: '',
+      createdAt: at,
+      updatedAt: at,
+    });
+    batch.set(db.doc(`_postComments/once${i}`), {
+      uid: 'alice',
+      postId: 'once0',
+      body: 'Same author',
+      status: 'approved',
+      createdAt: at,
+    });
+  }
+  await batch.commit();
+  const original = db.doc.bind(db);
+  let lookups = 0;
+  db.doc = ((path: string) => {
+    if (path === '_socialAccounts/alice') lookups++;
+    return original(path);
+  }) as typeof db.doc;
+  try {
+    const counted = async (read: () => Promise<{ items: unknown[] }>, floor: number) => {
+      lookups = 0;
+      assert.ok((await read()).items.length >= floor);
+      return lookups;
+    };
+    assert.equal(await counted(() => api.listPosts.run(req('bob')), 25), 1);
+    assert.equal(
+      await counted(() => readCommunity.run(req('bob', { kind: 'ratings', itemId: 't' })), 25),
+      1,
+    );
+    // The post itself checks its author once before the comment page shares one more lookup.
+    assert.equal(
+      await counted(() => api.listPostComments.run(req('bob', { postId: 'once0' })), 25),
+      2,
+    );
+  } finally {
+    db.doc = original as typeof db.doc;
+  }
+});
+
+test('routine activity signals clients at most once a minute and ignores counters', async () => {
+  const { invalidateCommunity } = await import('../functions/src/social-core.ts');
+  const { publicProfileChanged } = await import('../functions/src/social-reads.ts');
+  const ref = db.doc('socialState/current');
+  await save();
+  await submit();
+  assert.equal((await ref.get()).exists, false, 'transactions no longer write the shared document');
+  await invalidateCommunity();
+  const first = (await ref.get()).updateTime!;
+  await invalidateCommunity();
+  assert.ok((await ref.get()).updateTime!.isEqual(first));
+  await invalidateCommunity(Date.now() + 61000);
+  assert.ok(!(await ref.get()).updateTime!.isEqual(first));
+  assert.equal(publicProfileChanged({ bio: 'a', saveCount: 1 }, { bio: 'a', saveCount: 2 }), false);
+  assert.equal(publicProfileChanged({ bio: 'a' }, { bio: 'b' }), true);
+  assert.equal(publicProfileChanged({ scenes: ['rage'] }, { scenes: ['plugg'] }), true);
 });
 
 test('username reservations are exclusive and publish immediately', async () => {

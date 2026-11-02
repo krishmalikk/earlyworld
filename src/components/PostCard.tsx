@@ -1,5 +1,13 @@
-import { useState } from 'react';
-import { Alert, Modal, Pressable, Share, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
+import { tap } from '../lib/haptics';
+import { shareMessage } from '../../shared/links';
+import { Alert, Modal, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -21,14 +29,21 @@ export function PostCard({
   onComments?: () => void;
 }) {
   const uid = useLocal((s) => s.uid),
-    { changed } = useSocial(),
+    { changed, clearCommunity } = useSocial(),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
     // The whole photo, shown full screen; the feed crops photos to squares.
     [viewing, setViewing] = useState<string | null>(null),
     [photoState, setPhotoState] = useState<'loading' | 'ready' | 'error'>('loading'),
     [photoAttempt, setPhotoAttempt] = useState(0),
-    [truncated, setTruncated] = useState(false);
+    [truncated, setTruncated] = useState(false),
+    // Shown until the refetched post agrees, or put back if the request fails.
+    [likeGuess, setLikeGuess] = useState<{ liked: boolean; count: number } | null>(null);
+  useEffect(() => setLikeGuess(null), [post.liked, post.likeCount]);
+  const liked = likeGuess?.liked ?? post.liked,
+    likeCount = likeGuess?.count ?? post.likeCount;
+  const heart = useSharedValue(1);
+  const heartPop = useAnimatedStyle(() => ({ transform: [{ scale: heart.value }] }));
   const viewedMedia = post.media.find((media) => media.id === viewing);
   const viewingUri = viewedMedia?.url || viewedMedia?.thumbnailUrl;
   const recoverMedia = usePrivateMedia(viewingUri);
@@ -37,8 +52,10 @@ export function PostCard({
     setError('');
     try {
       await socialMutation(name, data);
+      if (name === 'setUserBlock') clearCommunity();
       changed();
     } catch (e) {
+      setLikeGuess(null);
       setError(errorMessage(e));
     } finally {
       setBusy(false);
@@ -108,7 +125,20 @@ export function PostCard({
                     {
                       text: 'Block user',
                       style: 'destructive' as const,
-                      onPress: () => void mutate('setUserBlock', { uid: post.uid, blocked: true }),
+                      onPress: () =>
+                        Alert.alert(
+                          `Block @${post.author.username}?`,
+                          'You will no longer see each other’s community content.',
+                          [
+                            { text: 'Cancel', style: 'cancel' },
+                            {
+                              text: 'Block',
+                              style: 'destructive',
+                              onPress: () =>
+                                void mutate('setUserBlock', { uid: post.uid, blocked: true }),
+                            },
+                          ],
+                        ),
                     },
                   ]),
               { text: 'Cancel', style: 'cancel' },
@@ -157,7 +187,14 @@ export function PostCard({
               }}
             >
               {media.status === 'ready' ? (
-                <Artwork uri={media.url || media.thumbnailUrl} name="Post photo" size="fill" />
+                <>
+                  <Artwork uri={media.url || media.thumbnailUrl} name="Post photo" size="fill" />
+                  {!detail ? (
+                    <View style={styles.expand} pointerEvents="none">
+                      <Ionicons name="expand-outline" size={14} color={c.text} />
+                    </View>
+                  ) : null}
+                </>
               ) : (
                 <Text style={[s.muted, { padding: space[16] }]}>
                   {media.status === 'failed' ? 'Photo could not be processed' : 'Processing photo…'}
@@ -176,18 +213,28 @@ export function PostCard({
           <Pressable
             disabled={busy}
             accessibilityRole="button"
-            accessibilityLabel={post.liked ? 'Unlike post' : 'Like post'}
-            onPress={() =>
-              void mutate('setPostInteraction', { id: post.id, kind: 'like', active: !post.liked })
-            }
+            accessibilityLabel={liked ? 'Unlike post' : 'Like post'}
+            accessibilityState={{ selected: liked }}
+            onPress={() => {
+              const next = !liked;
+              setLikeGuess({ liked: next, count: Math.max(0, likeCount + (next ? 1 : -1)) });
+              heart.value = withSequence(
+                withTiming(1.3, { duration: 90 }),
+                withTiming(1, { duration: 140 }),
+              );
+              tap();
+              void mutate('setPostInteraction', { id: post.id, kind: 'like', active: next });
+            }}
             style={[s.row, { paddingVertical: space[10] }]}
           >
-            <Ionicons
-              name={post.liked ? 'heart' : 'heart-outline'}
-              size={23}
-              color={post.liked ? c.accent : c.muted}
-            />
-            <Text style={s.muted}>{post.likeCount}</Text>
+            <Animated.View style={heartPop}>
+              <Ionicons
+                name={liked ? 'heart' : 'heart-outline'}
+                size={23}
+                color={liked ? c.accent : c.muted}
+              />
+            </Animated.View>
+            <Text style={s.muted}>{likeCount}</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
@@ -203,7 +250,7 @@ export function PostCard({
             accessibilityLabel="Share post"
             onPress={() =>
               void Share.share({
-                message: `https://earlyworld-6831c.web.app/post/${post.id}`,
+                message: shareMessage('post', post.id),
               }).catch(() => setError('Could not open sharing.'))
             }
             style={{ padding: space[10] }}
@@ -300,3 +347,17 @@ export function PostCard({
     </View>
   );
 }
+const styles = StyleSheet.create({
+  expand: {
+    position: 'absolute',
+    right: space[8],
+    bottom: space[8],
+    width: 26,
+    height: 26,
+    borderRadius: radius.pill,
+    backgroundColor: c.bg,
+    opacity: 0.85,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

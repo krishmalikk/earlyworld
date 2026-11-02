@@ -1,6 +1,13 @@
 import { averageRating } from '../../shared/ratings';
 import { fontSize, fontWeight, radius, space } from '../../shared/theme';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
+import { tap } from '../lib/haptics';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,19 +31,32 @@ export function SaveButton({
   const uid = useLocal((x) => x.uid);
   const { ids, loading, error: saveError } = useSaves();
   const inFlight = useRef(false);
-  const data = ids.has(track.id);
+  const confirmed = ids.has(track.id);
+  // The icon flips at once; the listener confirms it a moment later or the error line explains.
+  const [optimistic, setOptimistic] = useState<boolean | null>(null);
+  const data = optimistic ?? confirmed;
+  useEffect(() => {
+    if (optimistic !== null && optimistic === confirmed) setOptimistic(null);
+  }, [confirmed, optimistic]);
+  const scale = useSharedValue(1);
+  const pop = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   const [busy, setBusy] = useState(false),
     [error, setError] = useState<string | null>(null);
   async function save() {
     if (!uid || inFlight.current || loading) return;
     inFlight.current = true;
+    const next = !data;
+    setOptimistic(next);
+    scale.value = withSequence(withTiming(1.3, { duration: 90 }), withTiming(1, { duration: 140 }));
+    tap();
     setBusy(true);
     setError(null);
     onError?.(null);
     try {
-      await toggleSave(uid, track, !!data);
+      await toggleSave(uid, track, !next);
     } catch (e) {
-      const message = `Could not ${data ? 'remove' : 'save'} this track. Check your connection and tap the bookmark to retry. ${errorMessage(e)}`;
+      setOptimistic(null);
+      const message = `Could not ${next ? 'save' : 'remove'} this track. Check your connection and tap the bookmark to retry. ${errorMessage(e)}`;
       setError(message);
       onError?.(message);
     } finally {
@@ -59,14 +79,15 @@ export function SaveButton({
           minHeight: 44,
           alignItems: 'center',
           justifyContent: 'center',
-          opacity: busy ? 0.4 : 1,
         }}
       >
-        <Ionicons
-          name={data ? 'bookmark' : 'bookmark-outline'}
-          size={20}
-          color={prominent ? c.bg : data ? c.accent : c.muted}
-        />
+        <Animated.View style={pop}>
+          <Ionicons
+            name={data ? 'bookmark' : 'bookmark-outline'}
+            size={20}
+            color={prominent ? c.bg : data ? c.accent : c.muted}
+          />
+        </Animated.View>
       </Pressable>
       {!onError ? <ErrorLine message={error || saveError} /> : null}
     </View>

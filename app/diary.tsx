@@ -2,7 +2,7 @@ import { SectionList, Text, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { space } from '../shared/theme';
 import { useDiary } from '../src/data/diary';
-import { DiaryMonthHeader, DiaryRow } from '../src/components/Diary';
+import { DiaryMonthHeader, DiaryPrivacyNote, DiaryRow } from '../src/components/Diary';
 import { Empty, ErrorLine, Page, s } from '../src/components/ui';
 
 export default function Diary() {
@@ -18,7 +18,12 @@ export default function Diary() {
         initialNumToRender={20}
         renderSectionHeader={({ section }) => <DiaryMonthHeader month={section} />}
         renderItem={({ item }) => <DiaryRow entry={item} />}
-        ListHeaderComponent={<ErrorLine message={diary.error} />}
+        ListHeaderComponent={
+          <View style={{ gap: space[12] }}>
+            <DiaryPrivacyNote />
+            <ErrorLine message={diary.error} />
+          </View>
+        }
         ListEmptyComponent={
           diary.loading ? (
             <View />

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 process.env.GCLOUD_PROJECT = 'demo-earlyworld-catalog-jobs';
 if (!process.env.FIRESTORE_EMULATOR_HOST) throw new Error('Use an isolated emulator.');
 const { db } = await import('../functions/src/core.ts');
-const { enqueueGenius, runGeniusJobs, retryTime } =
+const { enqueueGenius, runGeniusJobs, retryTime, requestTrackEnrichment } =
   await import('../functions/src/catalog-jobs.ts');
 const { GeniusRequestError } = await import('../functions/src/genius.ts');
 const song = {
@@ -23,16 +23,14 @@ beforeEach(async () => {
     `http://${process.env.FIRESTORE_EMULATOR_HOST}/emulator/v1/projects/demo-earlyworld-catalog-jobs/databases/(default)/documents`,
     { method: 'DELETE' },
   );
-  await db
-    .doc('tracks/t')
-    .set({
-      title: 'Song',
-      artistName: 'Artist',
-      geniusStatus: 'deferred',
-      credits: null,
-      ratingCount: 3,
-      saveCount: 2,
-    });
+  await db.doc('tracks/t').set({
+    title: 'Song',
+    artistName: 'Artist',
+    geniusStatus: 'deferred',
+    credits: null,
+    ratingCount: 3,
+    saveCount: 2,
+  });
   await db.doc('_catalogControl/genius').set({ enabled: true, seedComplete: true });
 });
 after(() => db.terminate());
@@ -80,6 +78,13 @@ test('expired worker leases resume and repeated crashes stop after six attempts'
   assert.equal(job.status, 'dead');
   assert.equal(job.dueAt, undefined);
   assert.equal(retryTime(30, 0, 0), 86400000);
+});
+test('listeners cannot request enrichment', async () => {
+  await assert.rejects(
+    requestTrackEnrichment.run({ auth: { uid: 'u', token: {} }, data: { trackId: 't' } } as never),
+    { code: 'permission-denied' },
+  );
+  assert.equal((await db.doc('_catalogJobs/t').get()).exists, false);
 });
 test('disabled queue makes no provider requests', async () => {
   await db.doc('_catalogControl/genius').update({ enabled: false });

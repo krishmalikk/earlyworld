@@ -25,6 +25,7 @@ export const requestAccountDeletion = onCall(async (r) => {
     tx.set(db.doc(`_socialAccounts/${uid}`), { deleting: true, suspended: true }, { merge: true });
     tx.create(ref, { stage: 0, complete: false, createdAt: FieldValue.serverTimestamp() });
     touchSocial(tx, uid);
+    tx.set(db.doc('socialState/current'), { changedAt: FieldValue.serverTimestamp() });
   });
   return { queued: true };
 });
@@ -135,6 +136,13 @@ export async function deleteAccountBatch(uid: string) {
     const activity = await db.collection('activity').where('actorUid', '==', uid).limit(25).get();
     for (const d of activity.docs) await d.ref.delete();
     if (!activity.empty) return;
+    const notices = await db
+      .collectionGroup('notifications')
+      .where('actorUid', '==', uid)
+      .limit(25)
+      .get();
+    for (const d of notices.docs) await d.ref.delete();
+    if (!notices.empty) return;
     await ref.update({
       stage: stage + 1,
       settleAfter: Timestamp.fromMillis(Date.now() + 10 * 60000),

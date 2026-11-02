@@ -20,13 +20,13 @@ To keep callable work bounded, each artist request checks up to five playlists. 
 - `_releaseSync/{artistId}` and `_integrations/releaseCatalog`: private leases/checkpoints.
 - `artists/{artistId}.releaseSync`: read-only artist import progress.
 
-Authenticated callables: `setReleaseRating`, `deleteReleaseRating`, `setFavoriteReleases`, `syncArtistReleases`, and `syncReleaseCatalog`. Rating updates and deletes transactionally reconcile release and profile counts; identical submissions are no-ops. Rating and favorites logic is shared with the existing track APIs, with distinct collections, fields, and rate limits (60 rating mutations and 30 favorite changes per hour per account). Release sync calls are limited to 30 per hour per account. Firestore denies direct writes and permits release/opinion reads only when signed in.
+Authenticated callables: `setReleaseRating`, `deleteReleaseRating`, and `setFavoriteReleases`. `syncArtistReleases` and `syncReleaseCatalog` also require an `admin` claim. Rating updates and deletes transactionally reconcile release and profile counts; identical submissions are no-ops. Rating and favorites logic is shared with the existing track APIs, with distinct collections, fields, and rate limits (60 rating mutations and 30 favorite changes per hour per account). Release sync calls are limited to 30 per hour per account. Firestore denies direct writes and permits release/opinion reads only when signed in.
 
 The existing accessible rating editor and favorites editor serve both content types. Failed mutations retain drafts. Reads use account-scoped subscriptions and native cache; writes require the callable response. Analytics record publication, favorite changes, and failures without review text. The existing small-beta catalog subscription model is retained; server pagination/search remains a separate scaling task.
 
 ## Import operations
 
-In Discover → Releases, “Find more releases” advances the existing-artist catalog. Each artist also has a Load releases/Load more releases action. Completed artists are not repeatedly scanned; a future scheduled refresh policy is a separate task.
+Only accounts with an `admin` claim can start imports. For them, Discover → Releases shows “Find more releases”, which advances the existing-artist catalog, and each artist shows Load releases/Load more releases. Other listeners see only imported releases. Completed artists are not repeatedly scanned; a future scheduled refresh policy is a separate task.
 
 For operators with authorized Application Default Credentials and SoundCloud credentials in `.env`:
 

@@ -19,10 +19,13 @@ import type { Rating, Track } from '../data/types';
 import { useRatings, ratingMutation, useRatingList } from '../data/ratings';
 import { useCatalogIds } from '../data/catalog';
 import { errorMessage } from '../lib/firebase';
+import { tick } from '../lib/haptics';
+import { refreshEmailVerified } from '../lib/social-sign-in';
 import { ratingLabel } from '../../shared/ratings';
 import { Button, c, ErrorLine, Field, s, Section } from './ui';
 import { SaveButton, TrackRow, platformNames } from './TrackRow';
 import { UserLine } from './UserLine';
+import { VerifyEmailControls } from './SettingsControls';
 import { useLocal } from '../state/local';
 import { Stars, CommunityRating } from './RatingDisplay';
 
@@ -57,17 +60,28 @@ export function RatingEditor({
     [halfStars, setHalfStars] = useState(0),
     [review, setReview] = useState(''),
     [busy, setBusy] = useState(false),
-    [error, setError] = useState<string | null>(null);
+    [error, setError] = useState<string | null>(null),
+    [needsEmail, setNeedsEmail] = useState(false);
   function begin() {
     setHalfStars(existing?.halfStars || 0);
     setReview(revision?.body || existing?.review || '');
     setError(null);
+    setNeedsEmail(false);
     setOpen(true);
   }
   async function submit(remove = false) {
     setBusy(true);
     setError(null);
     try {
+      // Only new review text needs a verified email; stars save either way.
+      const previous = revision?.body || existing?.review || '';
+      if (!remove && review.trim() && review.trim() !== previous.trim()) {
+        if (!(await refreshEmailVerified())) {
+          setNeedsEmail(true);
+          return;
+        }
+      }
+      setNeedsEmail(false);
       await ratingMutation(
         kind === 'release'
           ? remove
@@ -158,7 +172,13 @@ export function RatingEditor({
                       disabled={busy}
                       accessibilityRole="button"
                       accessibilityLabel={`Rate ${star} ${star === 1 ? 'star' : 'stars'}`}
-                      onPress={() => setHalfStars(star * 2)}
+                      accessibilityHint="Tap the left half of a star for a half star."
+                      onPress={(event) => {
+                        // The 32pt glyph sits centred in a 48pt target; the left half is a half star.
+                        const half = event.nativeEvent.locationX < 24;
+                        setHalfStars(half ? star * 2 - 1 : star * 2);
+                        tick();
+                      }}
                       style={{
                         minWidth: 48,
                         minHeight: 48,
@@ -185,7 +205,10 @@ export function RatingEditor({
                     accessibilityRole="button"
                     accessibilityLabel="Decrease rating by half a star"
                     disabled={busy || halfStars <= 1}
-                    onPress={() => setHalfStars((n) => Math.max(1, n - 1))}
+                    onPress={() => {
+                      setHalfStars((n) => Math.max(1, n - 1));
+                      tick();
+                    }}
                     style={{ padding: space[14], opacity: halfStars <= 1 ? 0.4 : 1 }}
                   >
                     <Ionicons name="remove" size={20} color={c.accent} />
@@ -197,14 +220,17 @@ export function RatingEditor({
                     accessibilityRole="button"
                     accessibilityLabel="Increase rating by half a star"
                     disabled={busy || halfStars >= 10}
-                    onPress={() => setHalfStars((n) => Math.min(10, n + 1))}
+                    onPress={() => {
+                      setHalfStars((n) => Math.min(10, n + 1));
+                      tick();
+                    }}
                     style={{ padding: space[14], opacity: halfStars >= 10 ? 0.4 : 1 }}
                   >
                     <Ionicons name="add" size={20} color={c.accent} />
                   </Pressable>
                 </View>
                 <Text style={[s.muted, { textAlign: 'center' }]}>
-                  Tap a star. Use − / + for half stars.
+                  Tap a star, or its left half for a half star. Use − / + to adjust.
                 </Text>
               </View>
               <View style={{ gap: space[8] }}>
@@ -226,6 +252,14 @@ export function RatingEditor({
                 ) : null}
               </View>
               <ErrorLine message={error} />
+              {needsEmail && review.trim() ? (
+                <View style={[s.panel, { backgroundColor: c.bg }]}>
+                  <Text style={s.text}>
+                    Verify your email to publish this review. Your rating and text will stay here.
+                  </Text>
+                  <VerifyEmailControls onVerified={() => setNeedsEmail(false)} />
+                </View>
+              ) : null}
               <Button disabled={!halfStars} busy={busy} onPress={() => submit()}>
                 {existing ? 'Save changes' : 'Publish rating'}
               </Button>

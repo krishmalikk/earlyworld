@@ -37,6 +37,15 @@ beforeEach(async () => {
   await db.doc('artists/a').set(artist);
 });
 after(() => db.terminate());
+test('listeners cannot start release imports', async () => {
+  const { syncArtistReleases, syncReleaseCatalog } = await import('../functions/src/releases.ts');
+  const listener = { auth: { uid: 'listener', token: {} }, data: { artistId: 'a' } } as any;
+  await assert.rejects(syncArtistReleases.run(listener), { code: 'permission-denied' });
+  await assert.rejects(syncReleaseCatalog.run(listener), { code: 'permission-denied' });
+  await assert.rejects(syncReleaseCatalog.run({ data: {} } as any), { code: 'unauthenticated' });
+  assert.equal((await db.collection('_rateLimits').get()).size, 0);
+  assert.equal((await db.doc('_integrations/releaseCatalog').get()).exists, false);
+});
 test('only explicitly classified public releases owned by the existing artist qualify', () => {
   assert.equal(releaseMetadata(playlist, artist.soundcloud.urn)?.releaseType, 'album');
   for (const type of ['EP', 'mixtape', 'compilation', 'single'])

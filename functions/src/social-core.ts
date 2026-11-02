@@ -49,6 +49,26 @@ export async function blocked(a: string, b: string) {
   );
   return docs.some((d) => d.exists);
 }
+/** Remembers lookups for one request, so a page with one author costs one lookup. */
+export function perRequest<T>(load: (key: string) => Promise<T>) {
+  const known = new Map<string, Promise<T>>();
+  return (key: string) => {
+    let value = known.get(key);
+    if (!value) known.set(key, (value = load(key)));
+    return value;
+  };
+}
+/** Whether `viewer` may see this author: no block either way, not suspended or deleting. */
+export const authorVisibility = (viewer: string) =>
+  perRequest(async (author) => {
+    const account = (await db.doc(`_socialAccounts/${author}`).get()).data();
+    return !account?.suspended && !account?.deleting && !(await blocked(viewer, author));
+  });
+export const followsUser = (uid: string) =>
+  perRequest(
+    async (author) =>
+      (await db.doc(`users/${uid}/following/${author}`).get()).data()?.targetType === 'user',
+  );
 export async function visiblePost(uid: string, id: string) {
   const d = await db.doc(`posts/${socialId(id)}`).get();
   const p = d.data();
@@ -89,17 +109,39 @@ export async function quota(tx: Transaction, uid: string, action: string, max: n
       expiresAt: Timestamp.fromMillis(Date.now() + 2 * 86400000),
     });
 }
+/** Refreshes the owner's screens. Staying per-account keeps busy transactions from contending. */
 export function touchSocial(tx: Transaction, uid: string) {
   tx.set(
     db.doc(`users/${uid}/socialState/current`),
     { changedAt: FieldValue.serverTimestamp() },
     { merge: true },
   );
-  tx.set(
-    db.doc('socialState/current'),
-    { changedAt: FieldValue.serverTimestamp() },
-    { merge: true },
-  );
+}
+export type NoticeType = 'follow' | 'like' | 'comment' | 'match' | 'published';
+/** Keys are deterministic so retried events replace their notice, and undoing removes it. */
+export const noticeRef = (uid: string, key: string) =>
+  db.doc(`users/${uid}/notifications/${hash(key)}`);
+export function notify(
+  tx: Transaction,
+  uid: string,
+  key: string,
+  notice: { type: NoticeType; actorUid: string; postId?: string },
+) {
+  // Your own activity is not news, except a post finishing its photo processing.
+  if (uid === notice.actorUid && notice.type !== 'published') return;
+  tx.set(noticeRef(uid, key), { ...notice, createdAt: FieldValue.serverTimestamp() });
+}
+export const COMMUNITY_REFRESH_MS = 60000;
+/**
+ * Every signed-in client refetches its mounted community data when this document changes,
+ * so routine activity signals it at most once a minute. Screens also refresh on focus.
+ * Safety changes (suspension, deletion) write it directly and take effect at once.
+ */
+export async function invalidateCommunity(now = Date.now()) {
+  const ref = db.doc('socialState/current');
+  const last = (await ref.get()).data()?.changedAt?.toMillis() || 0;
+  if (now - last >= COMMUNITY_REFRESH_MS)
+    await ref.set({ changedAt: FieldValue.serverTimestamp() });
 }
 export async function mediaDTO(id: string): Promise<SocialMedia> {
   const snap = await db.doc(`_socialMedia/${id}`).get(),

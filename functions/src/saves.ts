@@ -3,6 +3,7 @@ import { db, FieldValue, hash } from './core';
 import { nextSavers } from '../../shared/domain';
 import { engagementInTransaction } from './engagement';
 import { computeMatchesFor } from './matching';
+import { noticeRef, notify } from './social-core';
 /** Reconcile current state, not delivery order: Firestore events are at-least-once and unordered. */
 export const onSave = onDocumentWritten(
   { document: 'users/{uid}/saves/{trackId}', retry: true },
@@ -82,6 +83,8 @@ export const onFollow = onDocumentWritten(
       if (!user.exists || desired === (state.data()?.following || false)) return;
       tx.update(user.ref, { followerCount: FieldValue.increment(desired ? 1 : -1) });
       tx.set(state.ref, { following: desired });
+      if (desired) notify(tx, target, `follow:${uid}`, { type: 'follow', actorUid: uid });
+      else tx.delete(noticeRef(target, `follow:${uid}`));
     });
   },
 );

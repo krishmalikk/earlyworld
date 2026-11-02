@@ -1,15 +1,15 @@
-import { space } from '../../shared/theme';
+import { space } from '../../../shared/theme';
 import { Pressable } from 'react-native';
-import { router, Tabs } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Profile } from '../../src/components/Profile';
-import { c } from '../../src/components/ui';
-import { useLocal } from '../../src/state/local';
+import { Profile } from '../../../src/components/Profile';
+import { c } from '../../../src/components/ui';
+import { useLocal } from '../../../src/state/local';
 export default function MyProfile() {
   const uid = useLocal((s) => s.uid);
   return (
     <>
-      <Tabs.Screen
+      <Stack.Screen
         options={{
           headerRight: () => (
             <Pressable

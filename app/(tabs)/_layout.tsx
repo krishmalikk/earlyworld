@@ -1,67 +1,64 @@
-import { fontFamily, fontSize, fontWeight, space, tracking } from '../../shared/theme';
-import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { NativeTabs } from 'expo-router/unstable-native-tabs';
+import { fontSize } from '../../shared/theme';
 import { BottomInsetHandledContext, c } from '../../src/components/ui';
+
+/**
+ * The system tab bar: Liquid Glass on iOS 26, the standard bar on older iOS, Material on
+ * Android. Headers live in each tab's own Stack. Scroll views run under the bar; iOS insets
+ * the first one automatically and Android wraps screens in a bottom safe area.
+ */
 export default function TabLayout() {
-  const insets = useSafeAreaInsets();
   return (
     <BottomInsetHandledContext.Provider value={true}>
-      <Tabs
-        screenOptions={{
-          headerStyle: { backgroundColor: c.bg },
-          headerTintColor: c.text,
-          headerTitleAlign: 'left',
-          headerTitleStyle: {
-            fontSize: fontSize.section,
-            fontFamily: fontFamily.displayBold,
-            fontWeight: fontWeight.regular,
-            letterSpacing: tracking.brand,
-          },
-          headerShadowVisible: false,
-          tabBarStyle: {
-            backgroundColor: c.bg,
-            borderTopColor: c.line,
-            height: 48 + insets.bottom,
-            paddingTop: space[8],
-          },
-          tabBarActiveTintColor: c.accent,
-          tabBarInactiveTintColor: c.muted,
-          tabBarLabelStyle: { fontSize: fontSize.smallCaption, letterSpacing: tracking.eyebrow },
+      <NativeTabs
+        tintColor={c.accent}
+        iconColor={{ default: c.muted, selected: c.accent }}
+        labelStyle={{
+          default: { color: c.muted, fontSize: fontSize.smallCaption },
+          selected: { color: c.accent, fontSize: fontSize.smallCaption },
         }}
+        // Only iOS 18 and earlier use these; iOS 26 derives the glass from what is behind it.
+        backgroundColor={c.bg}
+        blurEffect="systemChromeMaterialDark"
+        shadowColor={c.line}
+        disableTransparentOnScrollEdge
+        minimizeBehavior="onScrollDown"
+        indicatorColor={c.selected}
+        rippleColor={c.selected}
       >
-        {(
-          [
-            { name: 'index', title: 'Feed', icon: 'albums-outline' },
-            { name: 'discover', title: 'Discover', icon: 'search-outline' },
-            { name: 'create', title: 'Create', icon: 'add-circle-outline' },
-            { name: 'matches', title: 'Matches', icon: 'git-compare-outline' },
-            { name: 'profile', title: 'Profile', icon: 'person-outline' },
-          ] as const
-        ).map((t) => (
-          <Tabs.Screen
-            key={t.name}
-            name={t.name}
-            options={{
-              title: t.title,
-              ...(t.name === 'index'
-                ? {
-                    headerTitle: 'earlyworld',
-                    headerTitleStyle: {
-                      fontSize: fontSize.brandCompact,
-                      fontFamily: fontFamily.displayBold,
-                      fontWeight: fontWeight.regular,
-                      letterSpacing: tracking.brand,
-                    },
-                  }
-                : {}),
-              tabBarIcon: ({ color, size }) => (
-                <Ionicons name={t.icon} size={size - 3} color={color} />
-              ),
-            }}
+        <NativeTabs.Trigger name="(feed)">
+          <NativeTabs.Trigger.Label>Feed</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon
+            sf={{ default: 'rectangle.stack', selected: 'rectangle.stack.fill' }}
+            md="home"
           />
-        ))}
-      </Tabs>
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="discover">
+          <NativeTabs.Trigger.Label>Discover</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon sf="magnifyingglass" md="search" />
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="create">
+          <NativeTabs.Trigger.Label>Create</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon
+            sf={{ default: 'plus.circle', selected: 'plus.circle.fill' }}
+            md="add_circle"
+          />
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="matches">
+          <NativeTabs.Trigger.Label>Matches</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon
+            sf={{ default: 'person.2', selected: 'person.2.fill' }}
+            md="group"
+          />
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="profile">
+          <NativeTabs.Trigger.Label>Profile</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon
+            sf={{ default: 'person', selected: 'person.fill' }}
+            md="person"
+          />
+        </NativeTabs.Trigger>
+      </NativeTabs>
     </BottomInsetHandledContext.Provider>
   );
 }

@@ -3,8 +3,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useCatalogIds } from '../data/catalog';
-import { useCommunity } from '../data/community';
-import type { Rating, ReleaseRating, User } from '../data/types';
+import { useProfile } from '../data/profiles';
+import type { Rating, ReleaseRating } from '../data/types';
 import { Stars } from './RatingDisplay';
 import { Artwork, c } from './ui';
 
@@ -25,7 +25,7 @@ export function FeedReview({
   const itemId = release ? rating.releaseId : rating.trackId;
   const catalog = useCatalogIds(release ? 'releases' : 'tracks', [itemId]);
   const item = catalog.byId.get(itemId);
-  const author = useCommunity<User>({ kind: 'profile', uid: rating.uid }).data[0];
+  const author = useProfile(rating.uid);
   return (
     <Pressable
       accessibilityRole="button"

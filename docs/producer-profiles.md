@@ -7,8 +7,8 @@ Follow action. There are no invented BPM ranges, genre tags, or affiliations.
 
 ## Ownership and identity
 
-`syncProducerCredits({ producerId })` is authenticated and limited to 60 calls per
-account per hour. It resolves the producer's Genius artist ID from the producer
+`syncProducerCredits({ producerId })` requires an `admin` claim and is limited to 60 calls per
+account per hour. Listeners only read cached productions. It resolves the producer's Genius artist ID from the producer
 credits of up to five existing, matched catalog songs. Exact normalized names or
 existing aliases must identify one unique artist ID; ambiguous identities stop for
 review instead of silently choosing a search hit. Subsequent calls use that ID.
@@ -46,7 +46,7 @@ retain follows, the current user's Rotation badge, and certified listeners.
 ## Operations and verification
 
 The tested callable and production read rules were deployed to `earlyworld-6831c`.
-The normal signed-in app flow can populate profiles without a local admin credential.
+Signed-in listeners cannot start a sync; an admin account in the app or the operator command populates profiles.
 The optional operator command requires explicitly authorized admin Application Default
 Credentials; it does not extract or reuse Firebase CLI credentials:
 
